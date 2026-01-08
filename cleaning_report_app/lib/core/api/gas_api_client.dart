@@ -4,28 +4,60 @@ import 'package:http/http.dart' as http;
 /// API Client for Google Apps Script backend
 class GasApiClient {
   // TODO: Replace with your deployed GAS Web App URL
-  static const String baseUrl = 'https://script.google.com/macros/s/AKfycbyh2EtK3gNo-xlgzaf_oD6btA-YzYUtVJXTRqpg4CwyqT6HfxXwqcuscR7LfhrUDgKFsw/exec';
+  static const String baseUrl = 'https://script.google.com/macros/s/AKfycbxY07AZ0lga9fonqdjO9LyI6_HhB0C7LrPNDorBooUNjkd0tcOhCVD8EmzSChEZiiNtAQ/exec';
 
-  /// GET request helper
+  /// GET request helper with structured error handling
   Future<Map<String, dynamic>> get(String action, {Map<String, String>? params}) async {
     final queryParams = {'action': action, ...?params};
     final uri = Uri.parse(baseUrl).replace(queryParameters: queryParams);
 
     try {
-      // GAS redirects, so we need to follow redirects
       final response = await http.get(uri);
 
       if (response.statusCode == 200) {
-        return jsonDecode(response.body) as Map<String, dynamic>;
+        final decoded = jsonDecode(response.body) as Map<String, dynamic>;
+        
+        // Log errors from API
+        if (decoded['success'] == false) {
+          _logApiError(action, decoded);
+        }
+        
+        return decoded;
       } else {
-        return {'success': false, 'message': 'HTTP Error: ${response.statusCode}'};
+        final error = {
+          'success': false,
+          'message': 'HTTP Error: ${response.statusCode}',
+          'errorDetail': 'Status: ${response.statusCode}, Body: ${response.body}'
+        };
+        _logApiError(action, error);
+        return error;
       }
     } catch (e) {
-      return {'success': false, 'message': e.toString()};
+      final error = {
+        'success': false,
+        'message': 'ネットワークエラーが発生しました',
+        'errorDetail': e.toString()
+      };
+      _logApiError(action, error);
+      return error;
     }
   }
 
-  /// POST request helper
+  /// Log API errors with details
+  void _logApiError(String action, Map<String, dynamic> response) {
+    final errorId = response['errorId'] ?? 'N/A';
+    final message = response['message'] ?? 'Unknown error';
+    final detail = response['errorDetail'] ?? '';
+    
+    print('🔴 [API Error] Action: $action');
+    print('   Error ID: $errorId');
+    print('   Message: $message');
+    if (detail.isNotEmpty) {
+      print('   Detail: $detail');
+    }
+  }
+
+  /// POST request helper (kept for compatibility)
   Future<Map<String, dynamic>> post(String action, Map<String, dynamic> data) async {
     final uri = Uri.parse(baseUrl);
 
@@ -60,28 +92,12 @@ class GasApiClient {
   }
 
   Future<Map<String, dynamic>> saveReport(Map<String, dynamic> reportData) async {
-    return post('saveReport', reportData);
+    final dataJson = jsonEncode(reportData);
+    return get('saveReport', params: {'data': dataJson});
   }
 
   Future<Map<String, dynamic>> deleteData(String id) async {
-    final uri = Uri.parse(baseUrl);
-    final body = jsonEncode({'action': 'deleteData', 'id': id});
-    
-    try {
-      final response = await http.post(
-        uri,
-        headers: {'Content-Type': 'application/json'},
-        body: body,
-      );
-
-      if (response.statusCode == 200) {
-        return jsonDecode(response.body) as Map<String, dynamic>;
-      } else {
-        return {'success': false, 'message': 'HTTP Error: ${response.statusCode}'};
-      }
-    } catch (e) {
-      return {'success': false, 'message': e.toString()};
-    }
+    return get('deleteData', params: {'id': id});
   }
 
   Future<Map<String, dynamic>> generatePdf({String? month}) async {
