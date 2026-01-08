@@ -2,7 +2,7 @@
 
 ## 構成
 - **Frontend**: Flutter Web (`cleaning_report_app/`)
-- **Backend API**: Google Apps Script (`src/Code.js`)
+- **Backend API**: Google Apps Script (`gas/Code.js`)
 - **Database**: Google Spreadsheet
 
 ## セットアップ手順
@@ -10,7 +10,7 @@
 ### 1. GAS API のデプロイ
 1. Google スプレッドシートを新規作成
 2. **拡張機能 > Apps Script** を開く
-3. `src/Code.js` の内容を `Code.gs` に貼り付け
+3. `gas/Code.js` の内容を `Code.gs` に貼り付け
 4. `initialSetup` 関数を実行（シートを自動作成）
 5. **デプロイ > 新しいデプロイ** > **ウェブアプリ**で公開
    - 次のユーザーとして実行: **自分**
