@@ -55,17 +55,16 @@ class ExpenseReportScreen extends HookConsumerWidget {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('経費報告を送信しました')),
         );
-        context.go('/dashboard');
+        // Reset form
+        itemController.clear();
+        amountController.clear();
+        noteController.clear();
       }
     }
 
     return Scaffold(
       backgroundColor: Colors.grey.shade50,
       appBar: AppBar(
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back),
-          onPressed: () => context.go('/dashboard'),
-        ),
         title: const Text('立替費用報告'),
         backgroundColor: Colors.white,
         surfaceTintColor: Colors.white,

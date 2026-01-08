@@ -5,7 +5,6 @@ import 'package:go_router/go_router.dart';
 
 import 'core/api/gas_api_client.dart';
 import 'features/auth/presentation/pin_screen.dart';
-import 'features/dashboard/presentation/dashboard_screen.dart';
 import 'features/report/presentation/cleaning_report_screen.dart';
 import 'features/report/presentation/expense_report_screen.dart';
 import 'features/history/presentation/history_screen.dart';
@@ -59,21 +58,78 @@ final _router = GoRouter(
       path: '/login',
       builder: (context, state) => const PinScreen(),
     ),
-    GoRoute(
-      path: '/dashboard',
-      builder: (context, state) => const DashboardScreen(),
-    ),
-    GoRoute(
-      path: '/report/cleaning',
-      builder: (context, state) => const CleaningReportScreen(),
-    ),
-    GoRoute(
-      path: '/report/expense',
-      builder: (context, state) => const ExpenseReportScreen(),
-    ),
-    GoRoute(
-      path: '/history',
-      builder: (context, state) => const HistoryScreen(),
+    StatefulShellRoute.indexedStack(
+      builder: (context, state, navigationShell) {
+        return ScaffoldWithNavBar(navigationShell: navigationShell);
+      },
+      branches: [
+        StatefulShellBranch(
+          routes: [
+            GoRoute(
+              path: '/report/cleaning',
+              builder: (context, state) => const CleaningReportScreen(),
+            ),
+          ],
+        ),
+        StatefulShellBranch(
+          routes: [
+            GoRoute(
+              path: '/report/expense',
+              builder: (context, state) => const ExpenseReportScreen(),
+            ),
+          ],
+        ),
+        StatefulShellBranch(
+          routes: [
+            GoRoute(
+              path: '/history',
+              builder: (context, state) => const HistoryScreen(),
+            ),
+          ],
+        ),
+      ],
     ),
   ],
 );
+
+class ScaffoldWithNavBar extends StatelessWidget {
+  const ScaffoldWithNavBar({
+    required this.navigationShell,
+    Key? key,
+  }) : super(key: key ?? const ValueKey<String>('ScaffoldWithNavBar'));
+
+  final StatefulNavigationShell navigationShell;
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      body: navigationShell,
+      bottomNavigationBar: NavigationBar(
+        selectedIndex: navigationShell.currentIndex,
+        onDestinationSelected: (index) {
+          navigationShell.goBranch(
+            index,
+            initialLocation: index == navigationShell.currentIndex,
+          );
+        },
+        destinations: const [
+          NavigationDestination(
+            icon: Icon(Icons.cleaning_services_outlined),
+            selectedIcon: Icon(Icons.cleaning_services),
+            label: '清掃報告',
+          ),
+          NavigationDestination(
+            icon: Icon(Icons.receipt_long_outlined),
+            selectedIcon: Icon(Icons.receipt_long),
+            label: '立替費用',
+          ),
+          NavigationDestination(
+            icon: Icon(Icons.history_outlined),
+            selectedIcon: Icon(Icons.history),
+            label: '履歴',
+          ),
+        ],
+      ),
+    );
+  }
+}

@@ -21,10 +21,6 @@ class HistoryScreen extends HookConsumerWidget {
     return Scaffold(
       backgroundColor: Colors.grey.shade50,
       appBar: AppBar(
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back),
-          onPressed: () => context.go('/dashboard'),
-        ),
         title: const Text('履歴・編集'),
         backgroundColor: Colors.white,
         surfaceTintColor: Colors.white,

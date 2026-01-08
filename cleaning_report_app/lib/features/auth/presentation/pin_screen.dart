@@ -191,7 +191,7 @@ class PinScreen extends HookConsumerWidget {
     isLoading.value = false;
     
     if (success && context.mounted) {
-      context.go('/dashboard');
+      context.go('/report/cleaning');
     } else {
       errorMessage.value = '暗証番号が違います';
       pinController.value = '';

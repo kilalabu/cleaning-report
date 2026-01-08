@@ -78,17 +78,15 @@ class CleaningReportScreen extends HookConsumerWidget {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('報告を送信しました')),
         );
-        context.go('/dashboard');
+        // Reset form
+        items.value = [CleaningItem(id: idCounter.value)];
+        idCounter.value++;
       }
     }
 
     return Scaffold(
       backgroundColor: Colors.grey.shade50,
       appBar: AppBar(
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back),
-          onPressed: () => context.go('/dashboard'),
-        ),
         title: const Text('清掃報告'),
         backgroundColor: Colors.white,
         surfaceTintColor: Colors.white,
