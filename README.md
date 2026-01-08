@@ -92,7 +92,42 @@ git push -u origin main
 4. **Save** をクリック
 5. 数分後、公開URL（`https://kilalabu.github.io/cleaning-report/`）でアクセス可能
 
+---
 
+## 更新・デプロイ手順
+
+UIを更新してGitHub Pagesに反映する手順です。
+
+### 手動デプロイ
+
+1. コードを編集: `cleaning_report_app/lib/features/` 配下のDartファイルを編集
+2. リビルド:
+   ```bash
+   cd cleaning_report_app
+   fvm flutter build web --release --base-href "/cleaning-report/"
+   ```
+3. docsフォルダを更新:
+   ```bash
+   cd ..
+   rm -rf docs/*
+   cp -r cleaning_report_app/build/web/* docs/
+   touch docs/.nojekyll
+   ```
+4. Git commit & push:
+   ```bash
+   git add .
+   git commit -m "Update UI"
+   git push
+   ```
+
+### 自動デプロイスクリプト（推奨）
+
+`deploy.sh` を実行:
+```bash
+./deploy.sh
+```
+
+---
 
 ## 機能
 - PIN認証（4桁）
