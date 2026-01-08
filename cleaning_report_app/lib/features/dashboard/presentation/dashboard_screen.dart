@@ -82,7 +82,7 @@ class DashboardScreen extends HookConsumerWidget {
                                     ),
                               ),
                               Text(
-                                '全て見る',
+                                '履歴一覧',
                                 style: TextStyle(
                                   color: Theme.of(context).colorScheme.primary,
                                   fontWeight: FontWeight.w500,
@@ -101,7 +101,7 @@ class DashboardScreen extends HookConsumerWidget {
                                   ),
                                 );
                               }
-                              final preview = items.take(3).toList();
+                              final preview = items.take(8).toList();
                               return Column(
                                 children: preview.map((item) => _HistoryTile(item: item)).toList(),
                               );
