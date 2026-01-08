@@ -1,0 +1,200 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+  <base target="_top">
+  <?!= include('stylesheet'); ?>
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;700&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/icon?family=Material+Icons+Round" rel="stylesheet">
+</head>
+
+<body>
+  <div id="app">
+
+    <!-- ====================
+           LOGIN VIEW
+           ==================== -->
+    <div id="view-login" class="view active">
+      <div class="login-container">
+        <h1>Cleaning Report</h1>
+        <p class="subtitle">かんたん清掃報告システム</p>
+
+        <div class="pin-display">
+          <span class="dot"></span><span class="dot"></span><span class="dot"></span><span class="dot"></span>
+        </div>
+
+        <div class="keypad">
+          <button class="key" onclick="handlePinInput(1)">1</button>
+          <button class="key" onclick="handlePinInput(2)">2</button>
+          <button class="key" onclick="handlePinInput(3)">3</button>
+          <button class="key" onclick="handlePinInput(4)">4</button>
+          <button class="key" onclick="handlePinInput(5)">5</button>
+          <button class="key" onclick="handlePinInput(6)">6</button>
+          <button class="key" onclick="handlePinInput(7)">7</button>
+          <button class="key" onclick="handlePinInput(8)">8</button>
+          <button class="key" onclick="handlePinInput(9)">9</button>
+          <button class="key empty"></button>
+          <button class="key" onclick="handlePinInput(0)">0</button>
+          <button class="key delete" onclick="handlePinDelete()"><span
+              class="material-icons-round">backspace</span></button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ====================
+           DASHBOARD VIEW
+           ==================== -->
+    <div id="view-dashboard" class="view">
+      <header class="app-header">
+        <h2>Dashboard</h2>
+        <button class="icon-btn" onclick="logout()"><span class="material-icons-round">logout</span></button>
+      </header>
+
+      <main class="dashboard-grid">
+        <div class="card action-card" onclick="navigateTo('view-report-cleaning')">
+          <div class="icon-box clean">
+            <span class="material-icons-round">cleaning_services</span>
+          </div>
+          <h3>清掃報告</h3>
+          <p>日々の清掃業務を報告</p>
+        </div>
+
+        <div class="card action-card" onclick="navigateTo('view-report-expense')">
+          <div class="icon-box expense">
+            <span class="material-icons-round">receipt_long</span>
+          </div>
+          <h3>立替費用報告</h3>
+          <p>備品購入などの立替</p>
+        </div>
+
+        <div class="card history-card" onclick="navigateTo('view-history')">
+          <div class="card-header">
+            <h3>今月の履歴</h3>
+            <span class="link-text">全て見る</span>
+          </div>
+          <div id="dashboard-history-preview" class="history-list-preview">
+            <!-- Loading or empty state -->
+            <p class="empty-text">読み込み中...</p>
+          </div>
+        </div>
+      </main>
+    </div>
+
+    <!-- ====================
+           CLEANING REPORT VIEW
+           ==================== -->
+    <div id="view-report-cleaning" class="view">
+      <header class="app-header">
+        <button class="icon-btn" onclick="navigateTo('view-dashboard')"><span
+            class="material-icons-round">arrow_back</span></button>
+        <h2>清掃報告</h2>
+        <div class="spacer"></div>
+      </header>
+
+      <main class="form-container">
+        <div class="form-group">
+          <label>日付</label>
+          <input type="date" id="cleaning-date" required>
+        </div>
+
+        <div id="cleaning-items-container">
+          <!-- Dynamic items will be added here -->
+        </div>
+
+        <button class="btn-secondary add-item-btn" onclick="addCleaningItem()">
+          <span class="material-icons-round">add</span> 業務を追加
+        </button>
+
+        <div class="form-actions">
+          <button class="btn-primary" onclick="submitCleaningReport()">報告する</button>
+        </div>
+      </main>
+    </div>
+
+    <!-- ====================
+           EXPENSE REPORT VIEW
+           ==================== -->
+    <div id="view-report-expense" class="view">
+      <header class="app-header">
+        <button class="icon-btn" onclick="navigateTo('view-dashboard')"><span
+            class="material-icons-round">arrow_back</span></button>
+        <h2>立替費用報告</h2>
+        <div class="spacer"></div>
+      </header>
+
+      <main class="form-container">
+        <div class="form-group">
+          <label>日付</label>
+          <input type="date" id="expense-date" required>
+        </div>
+
+        <div class="form-group">
+          <label>品目名</label>
+          <input type="text" id="expense-item" placeholder="例: ゴミ袋、洗剤" required>
+        </div>
+
+        <div class="form-group">
+          <label>金額 (税込)</label>
+          <input type="number" id="expense-amount" placeholder="¥" required>
+        </div>
+
+        <div class="form-group">
+          <label>備考 (任意)</label>
+          <textarea id="expense-note" rows="3"></textarea>
+        </div>
+
+        <div class="form-actions">
+          <button class="btn-primary" onclick="submitExpenseReport()">報告する</button>
+        </div>
+      </main>
+    </div>
+
+    <!-- ====================
+           HISTORY VIEW
+           ==================== -->
+    <div id="view-history" class="view">
+      <header class="app-header">
+        <button class="icon-btn" onclick="navigateTo('view-dashboard')"><span
+            class="material-icons-round">arrow_back</span></button>
+        <h2>履歴・編集</h2>
+        <div class="spacer"></div>
+      </header>
+
+      <main>
+        <div class="total-summary">
+          <small>今月の請求合計 (税込)</small>
+          <div class="total-amount" id="total-amount-display">¥0</div>
+        </div>
+
+        <!-- Invoice Section -->
+        <div class="card" style="margin-bottom: 20px; padding: 16px;">
+          <h3 style="font-size:1rem; margin-bottom:12px;">請求書発行</h3>
+          <div style="display:flex; gap:10px;">
+            <input type="month" id="invoice-month" style="flex:1;">
+            <button class="btn-primary" style="width:auto; padding:0 20px; margin:0;" onclick="downloadInvoice()">
+              <span class="material-icons-round">download</span>
+            </button>
+          </div>
+        </div>
+
+        <div id="full-history-list" class="history-list">
+          <!-- Populated by JS -->
+        </div>
+      </main>
+    </div>
+
+  </div>
+
+  <!-- Loader Overlay -->
+  <div id="loader" class="loader-overlay hidden">
+    <div class="spinner"></div>
+    <p>処理中...</p>
+  </div>
+
+  <!-- Notification Toast -->
+  <div id="toast" class="toast hidden"></div>
+
+  <?!= include('javascript'); ?>
+</body>
+
+</html>

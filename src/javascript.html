@@ -1,0 +1,506 @@
+<script>
+  // Global State
+  let cleaningItems = [];
+  let currentHistory = [];
+
+  // Constants
+  const PRICES = {
+    REGULAR: 1100,
+    EXTRA_HOURLY: 1800,
+    EMERGENCY_HOURLY: 2000
+  };
+
+  // ==========================================
+  // Lifecycle & Auth
+  // ==========================================
+  document.addEventListener('DOMContentLoaded', () => {
+    // Check session
+    const sessionPin = sessionStorage.getItem('cleaning_app_pin');
+    const sessionTime = sessionStorage.getItem('cleaning_app_time');
+
+    if (sessionPin && sessionTime) {
+      const now = new Date().getTime();
+      // 30 mins expiration
+      if (now - parseInt(sessionTime) < 30 * 60 * 1000) {
+        showView('view-dashboard');
+        loadDashboardHistory();
+        return;
+      }
+    }
+
+    // Default to login
+    showView('view-login');
+  });
+
+  // ==========================================
+  // Navigation
+  // ==========================================
+  function navigateTo(viewId) {
+    if (viewId === 'view-report-cleaning') {
+      resetCleaningForm();
+    } else if (viewId === 'view-report-expense') {
+      resetExpenseForm();
+    } else if (viewId === 'view-history') {
+      loadFullHistory();
+    } else if (viewId === 'view-dashboard') {
+      loadDashboardHistory();
+    }
+    showView(viewId);
+  }
+
+  function showView(viewId) {
+    document.querySelectorAll('.view').forEach(el => {
+      el.classList.remove('active');
+    });
+    document.getElementById(viewId).classList.add('active');
+  }
+
+  function logout() {
+    sessionStorage.removeItem('cleaning_app_pin');
+    sessionStorage.removeItem('cleaning_app_time');
+    window.pinInput = '';
+    updatePinDisplay();
+    showView('view-login');
+  }
+
+  // ==========================================
+  // PIN Authentication
+  // ==========================================
+  window.pinInput = '';
+
+  function handlePinInput(num) {
+    if (window.pinInput.length < 4) {
+      window.pinInput += num;
+      updatePinDisplay();
+
+      if (window.pinInput.length === 4) {
+        verifyPin(window.pinInput);
+      }
+    }
+  }
+
+  function handlePinDelete() {
+    window.pinInput = window.pinInput.slice(0, -1);
+    updatePinDisplay();
+  }
+
+  function updatePinDisplay() {
+    const dots = document.querySelectorAll('.dot');
+    dots.forEach((dot, index) => {
+      if (index < window.pinInput.length) {
+        dot.classList.add('filled');
+      } else {
+        dot.classList.remove('filled');
+      }
+    });
+  }
+
+  function verifyPin(pin) {
+    showLoader(true);
+    google.script.run
+      .withSuccessHandler((res) => {
+        showLoader(false);
+        if (res.success) {
+          sessionStorage.setItem('cleaning_app_pin', pin);
+          sessionStorage.setItem('cleaning_app_time', new Date().getTime());
+          showView('view-dashboard');
+          loadDashboardHistory();
+        } else {
+          showToast('暗証番号が違います');
+          window.pinInput = '';
+          updatePinDisplay();
+        }
+      })
+      .withFailureHandler((err) => {
+        showLoader(false);
+        showToast('エラーが発生しました: ' + err);
+      })
+      .verifyPin(pin);
+  }
+
+  // ==========================================
+  // Cleaning Report Logic
+  // ==========================================
+  function resetCleaningForm() {
+    document.getElementById('cleaning-date').valueAsDate = new Date();
+    document.getElementById('cleaning-items-container').innerHTML = '';
+    cleaningItems = [];
+    addCleaningItem(true); // Add default item
+  }
+
+  function addCleaningItem(isFirst = false) {
+    const id = Date.now(); // Temp ID for DOM
+    const container = document.getElementById('cleaning-items-container');
+
+    const div = document.createElement('div');
+    div.className = 'cleaning-item';
+    div.id = `item-${id}`;
+
+    // Default values
+    const defaultType = isFirst ? 'regular' : 'extra';
+
+    let html = `
+    <div class="item-header">
+      <span style="font-weight:600; font-size: 0.9rem;">業務内容</span>
+      ${!isFirst ? `<button class="remove-btn" onclick="removeCleaningItem(${id})"><span class="material-icons-round">close</span></button>` : ''}
+    </div>
+    
+    <div class="form-group" style="margin-bottom:12px;">
+      <select id="type-${id}" onchange="updateItemForm(${id})">
+        <option value="regular" ${isFirst ? 'selected' : ''}>通常清掃 (1,100円)</option>
+        <option value="extra" ${!isFirst ? 'selected' : ''}>追加業務 (時給1,800円)</option>
+        <option value="emergency">緊急対応 (時給2,000円)</option>
+      </select>
+    </div>
+    
+    <div id="time-group-${id}" class="form-group" style="margin-bottom:12px; display:none;">
+      <label>作業時間</label>
+      <select id="time-${id}">
+        ${generateTimeOptions()}
+      </select>
+    </div>
+
+    <div class="form-group">
+      <label>備考 ${!isFirst ? '<span style="color:var(--danger)">*</span>' : '(任意)'}</label>
+      <input type="text" id="note-${id}" placeholder="内容を入力">
+    </div>
+  `;
+
+    div.innerHTML = html;
+    container.appendChild(div);
+
+    // Update state immediately to show correct fields
+    updateItemForm(id);
+  }
+
+  function removeCleaningItem(id) {
+    document.getElementById(`item-${id}`).remove();
+  }
+
+  function updateItemForm(id) {
+    const type = document.getElementById(`type-${id}`).value;
+    const timeGroup = document.getElementById(`time-group-${id}`);
+
+    if (type === 'regular') {
+      timeGroup.style.display = 'none';
+    } else {
+      timeGroup.style.display = 'flex';
+    }
+  }
+
+  function generateTimeOptions() {
+    let options = '';
+    for (let min = 15; min <= 180; min += 15) {
+      const hours = Math.floor(min / 60);
+      const m = min % 60;
+      const label = hours > 0 ? `${hours}時間${m > 0 ? m + '分' : ''}` : `${m}分`;
+      options += `<option value="${min}">${label}</option>`;
+    }
+    return options;
+  }
+
+  function submitCleaningReport() {
+    const dateStr = document.getElementById('cleaning-date').value;
+    if (!dateStr) {
+      showToast('日付を選択してください');
+      return;
+    }
+
+    // Collect all items
+    const itemDivs = document.querySelectorAll('.cleaning-item');
+    const reports = [];
+
+    for (let div of itemDivs) {
+      const idStr = div.id.split('-')[1];
+      const type = document.getElementById(`type-${idStr}`).value;
+      const note = document.getElementById(`note-${idStr}`).value.trim();
+
+      let amount = 0;
+      let duration = 0;
+      let itemName = '';
+      let unitPrice = 0;
+
+      if (type === 'regular') {
+        amount = PRICES.REGULAR;
+        itemName = '通常清掃';
+        unitPrice = PRICES.REGULAR;
+      } else {
+        if (!note) {
+          showToast('通常清掃以外は備考（作業内容）が必須です');
+          return;
+        }
+        duration = parseInt(document.getElementById(`time-${idStr}`).value);
+        const hourly = type === 'extra' ? PRICES.EXTRA_HOURLY : PRICES.EMERGENCY_HOURLY;
+        amount = Math.floor(hourly * (duration / 60));
+        itemName = type === 'extra' ? '追加業務' : '緊急対応';
+        unitPrice = hourly;
+      }
+
+      reports.push({
+        date: dateStr,
+        type: 'work',
+        item: itemName,
+        unitPrice: unitPrice,
+        duration: duration,
+        amount: amount,
+        note: note
+      });
+    }
+
+    // Submit sequentially or batch (The API saves one by one, let's just loop client side for simplicity or modify server to accept array. 
+    // For simplicity based on planned API, we call save for each. But to ensure atomicity better to send array.
+    // The plan said "apiSaveReport". I'll wrap it in a client-side loop or Promise.all.
+
+    showLoader(true);
+
+    // Helper to save one
+    const saveOne = (data) => {
+      return new Promise((resolve, reject) => {
+        google.script.run
+          .withSuccessHandler(resolve)
+          .withFailureHandler(reject)
+          .apiSaveReport(data);
+      });
+    };
+
+    Promise.all(reports.map(saveOne))
+      .then(() => {
+        showLoader(false);
+        showToast('報告を送信しました');
+        navigateTo('view-dashboard');
+      })
+      .catch(err => {
+        showLoader(false);
+        showToast('送信エラー: ' + err);
+      });
+  }
+
+  // ==========================================
+  // Expense Report Logic
+  // ==========================================
+  function resetExpenseForm() {
+    document.getElementById('expense-date').valueAsDate = new Date();
+    document.getElementById('expense-item').value = '';
+    document.getElementById('expense-amount').value = '';
+    document.getElementById('expense-note').value = '';
+  }
+
+  function submitExpenseReport() {
+    const dateStr = document.getElementById('expense-date').value;
+    const item = document.getElementById('expense-item').value.trim();
+    const amountStr = document.getElementById('expense-amount').value;
+    const note = document.getElementById('expense-note').value.trim();
+
+    if (!dateStr || !item || !amountStr) {
+      showToast('必須項目を入力してください');
+      return;
+    }
+
+    const reportData = {
+      date: dateStr,
+      type: 'expense',
+      item: item,
+      unitPrice: 0, // Not applicable
+      duration: 0,
+      amount: parseInt(amountStr),
+      note: note
+    };
+
+    showLoader(true);
+    google.script.run
+      .withSuccessHandler(() => {
+        showLoader(false);
+        showToast('経費報告を送信しました');
+        navigateTo('view-dashboard');
+      })
+      .withFailureHandler((err) => {
+        showLoader(false);
+        showToast('エラー: ' + err);
+      })
+      .apiSaveReport(reportData);
+  }
+
+  // ==========================================
+  // History & Dashboard Data Logic
+  // ==========================================
+  function loadDashboardHistory() {
+    const container = document.getElementById('dashboard-history-preview');
+    container.innerHTML = '<p class="empty-text">読み込み中...</p>';
+
+    // Get current month
+    const d = new Date();
+    const m = d.getMonth() + 1;
+    const monthStr = d.getFullYear() + '-' + (m < 10 ? '0' + m : m);
+
+    google.script.run
+      .withSuccessHandler((data) => {
+        currentHistory = data;
+        renderDashboardPreview(data);
+      })
+      .withFailureHandler((err) => {
+        container.innerHTML = '<p class="empty-text">読み込みエラー</p>';
+      })
+      .apiGetData(monthStr);
+  }
+
+  function renderDashboardPreview(data) {
+    const container = document.getElementById('dashboard-history-preview');
+    container.innerHTML = '';
+
+    if (!data || data.length === 0) {
+      container.innerHTML = '<p class="empty-text">履歴がありません</p>';
+      return;
+    }
+
+    // Show top 3
+    const preview = data.slice(0, 3);
+    preview.forEach(item => {
+      const el = createHistoryElement(item, false);
+      container.appendChild(el);
+    });
+  }
+
+  function loadFullHistory() {
+    const container = document.getElementById('full-history-list');
+    container.innerHTML = '<p class="empty-text" style="text-align:center; padding:20px;">読み込み中...</p>';
+
+    // Get current month (or allow selection in future)
+    const d = new Date();
+    const m = d.getMonth() + 1;
+    const monthStr = d.getFullYear() + '-' + (m < 10 ? '0' + m : m);
+
+    google.script.run
+      .withSuccessHandler((data) => {
+        currentHistory = data;
+        renderFullHistory(data);
+      })
+      .withFailureHandler((err) => {
+        container.innerHTML = '<p class="empty-text">読み込みエラー</p>';
+      })
+      .apiGetData(monthStr);
+  }
+
+  function renderFullHistory(data) {
+    const container = document.getElementById('full-history-list');
+    const totalDisplay = document.getElementById('total-amount-display');
+    container.innerHTML = '';
+
+    let total = 0;
+
+    if (data.length === 0) {
+      container.innerHTML = '<p class="empty-text" style="text-align:center; padding:40px;">今月の履歴はありません</p>';
+      totalDisplay.innerText = '¥0';
+      return;
+    }
+
+    data.forEach(item => {
+      total += Number(item.amount);
+      const el = createHistoryElement(item, true);
+      container.appendChild(el);
+    });
+
+    totalDisplay.innerText = '¥' + total.toLocaleString();
+  }
+
+  function createHistoryElement(item, allowDelete) {
+    const div = document.createElement('div');
+    div.className = 'history-item';
+
+    // Icon based on type
+    const icon = item.type === 'work' ? 'cleaning_services' : 'receipt_long';
+    const color = item.type === 'work' ? 'var(--primary)' : 'var(--secondary)';
+
+    div.innerHTML = `
+    <div style="display:flex; gap:12px; align-items:center;">
+       <span class="material-icons-round" style="color:${color}; background:var(--light); padding:8px; border-radius:50%; font-size:1.2rem;">${icon}</span>
+       <div class="h-info">
+         <span class="h-title">${item.item}</span>
+         <span class="h-date">${item.date} ${item.note ? '・' + item.note : ''}</span>
+       </div>
+    </div>
+    <div style="display:flex; align-items:center;">
+      <span class="h-amount">¥${item.amount.toLocaleString()}</span>
+      ${allowDelete ? `<button class="delete-action" onclick="deleteHistoryItem('${item.id}')"><span class="material-icons-round">delete</span></button>` : ''}
+    </div>
+  `;
+    return div;
+  }
+
+  function deleteHistoryItem(id) {
+    if (!confirm('本当に削除しますか？')) return;
+
+    showLoader(true);
+    google.script.run
+      .withSuccessHandler(() => {
+        showLoader(false);
+        showToast('削除しました');
+        loadFullHistory(); // Reload
+      })
+      .withFailureHandler((err) => {
+        showLoader(false);
+        showToast('削除失敗: ' + err);
+      })
+      .apiDeleteData(id);
+  }
+
+  // ==========================================
+  // Invoice Logic
+  // ==========================================
+  function downloadInvoice() {
+    const monthInput = document.getElementById('invoice-month');
+    let monthStr = monthInput.value;
+
+    if (!monthStr) {
+      // Default to last month if empty
+      const d = new Date();
+      d.setMonth(d.getMonth() - 1);
+      const m = d.getMonth() + 1;
+      monthStr = d.getFullYear() + '-' + (m < 10 ? '0' + m : m);
+    }
+
+    if (!confirm(`${monthStr} 分の請求書を発行しますか？`)) return;
+
+    showLoader(true);
+    google.script.run
+      .withSuccessHandler((res) => {
+        showLoader(false);
+        if (res.success) {
+          // Trigger download
+          // Base64 string is returned in res.data
+          const link = document.createElement('a');
+          link.href = res.data;
+          link.download = res.filename;
+          document.body.appendChild(link);
+          link.click();
+          document.body.removeChild(link);
+          showToast('ダウンロードを開始しました');
+        } else {
+          showToast('エラー: ' + res.message);
+        }
+      })
+      .withFailureHandler((err) => {
+        showLoader(false);
+        showToast('発行エラー: ' + err);
+      })
+      .apiGeneratePDF(monthStr);
+  }
+
+
+  // ==========================================
+  // UI Utilities
+  // ==========================================
+  function showLoader(show) {
+    const el = document.getElementById('loader');
+    if (show) el.classList.remove('hidden');
+    else el.classList.add('hidden');
+  }
+
+  function showToast(msg) {
+    const el = document.getElementById('toast');
+    el.innerText = msg;
+    el.classList.remove('hidden');
+    setTimeout(() => {
+      el.classList.add('hidden');
+    }, 3000);
+  }
+</script>
