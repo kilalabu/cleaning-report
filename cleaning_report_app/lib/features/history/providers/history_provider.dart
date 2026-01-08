@@ -2,12 +2,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/api/gas_api_client.dart';
 import '../../auth/providers/auth_provider.dart';
 
-final historyProvider = FutureProvider<List<Map<String, dynamic>>>((ref) async {
+// History provider that accepts month as parameter
+final historyProvider = FutureProvider.family<List<Map<String, dynamic>>, String>((ref, month) async {
   final api = ref.read(apiClientProvider);
-  
-  // Get current month
-  final now = DateTime.now();
-  final month = '${now.year}-${now.month.toString().padLeft(2, '0')}';
   
   final result = await api.getData(month: month);
   
@@ -19,9 +16,9 @@ final historyProvider = FutureProvider<List<Map<String, dynamic>>>((ref) async {
   throw Exception(result['message'] ?? 'Failed to load history');
 });
 
-// Total amount for current month
-final totalAmountProvider = Provider<int>((ref) {
-  final historyAsync = ref.watch(historyProvider);
+// Total amount for specified month
+final totalAmountProvider = Provider.family<int, String>((ref, month) {
+  final historyAsync = ref.watch(historyProvider(month));
   
   return historyAsync.when(
     data: (items) => items.fold(0, (sum, item) => sum + ((item['amount'] as num?)?.toInt() ?? 0)),

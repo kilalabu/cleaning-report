@@ -13,10 +13,10 @@ class HistoryScreen extends HookConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final historyAsync = ref.watch(historyProvider);
-    final totalAmount = ref.watch(totalAmountProvider);
     final selectedMonth = useState(_getCurrentMonth());
     final isGeneratingPdf = useState(false);
+    final historyAsync = ref.watch(historyProvider(selectedMonth.value));
+    final totalAmount = ref.watch(totalAmountProvider(selectedMonth.value));
 
     return Scaffold(
       backgroundColor: Colors.grey.shade50,
@@ -150,7 +150,7 @@ class HistoryScreen extends HookConsumerWidget {
                     return Column(
                       children: items.map((item) => _HistoryItemTile(
                         item: item,
-                        onDelete: () => _deleteItem(context, ref, item['id'] as String),
+                        onDelete: () => _deleteItem(context, ref, item['id'] as String, selectedMonth.value),
                       )).toList(),
                     );
                   },
@@ -225,7 +225,7 @@ class HistoryScreen extends HookConsumerWidget {
     }
   }
 
-  Future<void> _deleteItem(BuildContext context, WidgetRef ref, String id) async {
+  Future<void> _deleteItem(BuildContext context, WidgetRef ref, String id, String month) async {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
@@ -244,7 +244,7 @@ class HistoryScreen extends HookConsumerWidget {
     if (confirmed == true) {
       final api = ref.read(apiClientProvider);
       await api.deleteData(id);
-      ref.invalidate(historyProvider);
+      ref.invalidate(historyProvider(month));
 
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('削除しました')));

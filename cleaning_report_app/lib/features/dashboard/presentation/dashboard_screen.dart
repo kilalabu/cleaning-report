@@ -9,7 +9,10 @@ class DashboardScreen extends HookConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final historyAsync = ref.watch(historyProvider);
+    // Get current month for dashboard
+    final now = DateTime.now();
+    final currentMonth = '${now.year}-${now.month.toString().padLeft(2, '0')}';
+    final historyAsync = ref.watch(historyProvider(currentMonth));
 
     return Scaffold(
       backgroundColor: Colors.grey.shade50,
