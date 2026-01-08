@@ -3,12 +3,39 @@
  * This serves as a JSON API for Flutter Web frontend.
  */
 
+// Log levels for consistent logging
+const LOG_LEVEL = {
+  ERROR: 'ERROR',
+  WARN: 'WARN',
+  INFO: 'INFO'
+};
+
+/**
+ * Structured logging helper
+ */
+function log(level, action, message, data) {
+  const timestamp = new Date().toISOString();
+  const logEntry = `[${timestamp}] [${level}] [${action}] ${message}`;
+  if (data) {
+    Logger.log(logEntry + ' | Data: ' + JSON.stringify(data));
+  } else {
+    Logger.log(logEntry);
+  }
+}
+
+/**
+ * Generate error ID for tracking
+ */
+function generateErrorId() {
+  return 'ERR-' + new Date().getTime().toString(36).toUpperCase();
+}
+
 /**
  * Handle GET requests - API Router
  */
 function doGet(e) {
   const action = e.parameter.action || 'ping';
-  const callback = e.parameter.callback; // For JSONP support
+  const callback = e.parameter.callback;
 
   let result;
 
@@ -33,11 +60,29 @@ function doGet(e) {
         result = apiGeneratePDF(pdfMonth);
         break;
 
+      case 'saveReport':
+        const dataParam = e.parameter.data || '{}';
+        const reportData = JSON.parse(dataParam);
+        result = apiSaveReport(reportData);
+        break;
+
+      case 'deleteData':
+        const deleteId = e.parameter.id || '';
+        result = apiDeleteData(deleteId);
+        break;
+
       default:
         result = { success: false, message: 'Unknown action: ' + action };
     }
   } catch (error) {
-    result = { success: false, message: error.toString() };
+    const errorId = generateErrorId();
+    log(LOG_LEVEL.ERROR, action, error.message, { errorId: errorId, stack: error.stack });
+    result = {
+      success: false,
+      message: 'エラーが発生しました。サポートに連絡する際はエラーIDをお伝えください。',
+      errorId: errorId,
+      errorDetail: error.message
+    };
   }
 
   return createJsonResponse(result, callback);
@@ -49,10 +94,11 @@ function doGet(e) {
 function doPost(e) {
   const callback = e.parameter.callback;
   let result;
+  let action = 'unknown';
 
   try {
     const payload = JSON.parse(e.postData.contents);
-    const action = payload.action || '';
+    action = payload.action || '';
 
     switch (action) {
       case 'saveReport':
@@ -67,7 +113,14 @@ function doPost(e) {
         result = { success: false, message: 'Unknown action: ' + action };
     }
   } catch (error) {
-    result = { success: false, message: error.toString() };
+    const errorId = generateErrorId();
+    log(LOG_LEVEL.ERROR, action, error.message, { errorId: errorId, stack: error.stack });
+    result = {
+      success: false,
+      message: 'エラーが発生しました。サポートに連絡する際はエラーIDをお伝えください。',
+      errorId: errorId,
+      errorDetail: error.message
+    };
   }
 
   return createJsonResponse(result, callback);
@@ -156,8 +209,25 @@ function apiGetData(monthStr) {
     monthStr = Utilities.formatDate(d, Session.getScriptTimeZone(), 'yyyy-MM');
   }
 
+  // Helper function to normalize month value to yyyy-MM format
+  function normalizeMonth(val) {
+    if (val instanceof Date) {
+      return Utilities.formatDate(val, Session.getScriptTimeZone(), 'yyyy-MM');
+    }
+    if (typeof val === 'string') {
+      if (val.includes('T') || val.includes('-')) {
+        const d = new Date(val);
+        if (!isNaN(d.getTime())) {
+          return Utilities.formatDate(d, Session.getScriptTimeZone(), 'yyyy-MM');
+        }
+      }
+      return val;
+    }
+    return String(val);
+  }
+
   const filtered = data
-    .filter(row => row[9] === monthStr)
+    .filter(row => normalizeMonth(row[9]) === monthStr)
     .map(row => {
       let dateStr = '';
       try {
@@ -218,6 +288,8 @@ function apiSaveReport(reportData) {
   ];
 
   sheet.appendRow(row);
+  log(LOG_LEVEL.INFO, 'saveReport', 'Report saved', { id: id, type: reportData.type, item: reportData.item });
+
   return { success: true, message: 'Saved successfully', id: id };
 }
 
