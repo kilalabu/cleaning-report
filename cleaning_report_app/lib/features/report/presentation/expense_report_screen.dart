@@ -122,7 +122,7 @@ class ExpenseReportScreen extends HookConsumerWidget {
                 TextField(
                   controller: amountController,
                   keyboardType: TextInputType.number,
-                  decoration: const InputDecoration(hintText: '¥', prefixText: '¥ '),
+                  decoration: const InputDecoration(hintText: '例: 1000'),
                 ),
 
                 const SizedBox(height: 24),
@@ -130,6 +130,7 @@ class ExpenseReportScreen extends HookConsumerWidget {
                 const SizedBox(height: 8),
                 TextField(
                   controller: noteController,
+                  maxLength: 200,
                   maxLines: 3,
                   decoration: const InputDecoration(hintText: 'メモを入力'),
                 ),

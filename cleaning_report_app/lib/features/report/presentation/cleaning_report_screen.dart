@@ -274,17 +274,21 @@ class _CleaningItemCard extends StatelessWidget {
               ),
             ],
 
-            const SizedBox(height: 12),
-            Text(
-              item.type == 'regular' ? '備考 (任意)' : '備考 *',
-              style: Theme.of(context).textTheme.labelMedium,
-            ),
-            const SizedBox(height: 8),
-            TextFormField(
-              initialValue: item.note,
-              decoration: const InputDecoration(hintText: '内容を入力'),
-              onChanged: (v) => onChanged(item.copyWith(note: v)),
-            ),
+            if (item.type != 'regular') ...[
+              const SizedBox(height: 12),
+              Text(
+                '備考',
+                style: Theme.of(context).textTheme.labelMedium,
+              ),
+              const SizedBox(height: 8),
+              TextFormField(
+                initialValue: item.note,
+                maxLength: 200,
+                maxLines: 3,
+                decoration: const InputDecoration(hintText: '内容を入力'),
+                onChanged: (v) => onChanged(item.copyWith(note: v)),
+              ),
+            ],
           ],
         ),
       ),

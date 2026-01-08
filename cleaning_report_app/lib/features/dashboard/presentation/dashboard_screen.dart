@@ -82,7 +82,7 @@ class DashboardScreen extends HookConsumerWidget {
                                     ),
                               ),
                               Text(
-                                '履歴一覧',
+                                '全ての履歴を見る',
                                 style: TextStyle(
                                   color: Theme.of(context).colorScheme.primary,
                                   fontWeight: FontWeight.w500,
