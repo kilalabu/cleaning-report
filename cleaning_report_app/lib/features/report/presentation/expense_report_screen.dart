@@ -48,7 +48,8 @@ class ExpenseReportScreen extends HookConsumerWidget {
 
       isSubmitting.value = false;
       
-      ref.invalidate(historyProvider);
+      final month = dateController.value.substring(0, 7);
+      ref.invalidate(historyProvider(month));
 
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(

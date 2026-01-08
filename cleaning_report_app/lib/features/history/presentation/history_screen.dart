@@ -59,7 +59,7 @@ class HistoryScreen extends HookConsumerWidget {
                   child: Column(
                     children: [
                       Text(
-                        '今月の請求合計 (税込)',
+                        '${_getMonthLabel(selectedMonth.value)}の請求合計 (税込)',
                         style: TextStyle(color: Colors.white.withOpacity(0.9), fontSize: 14),
                       ),
                       const SizedBox(height: 8),
@@ -140,10 +140,10 @@ class HistoryScreen extends HookConsumerWidget {
                 historyAsync.when(
                   data: (items) {
                     if (items.isEmpty) {
-                      return const Center(
+                      return Center(
                         child: Padding(
-                          padding: EdgeInsets.all(40),
-                          child: Text('今月の履歴はありません', style: TextStyle(color: Colors.grey)),
+                          padding: const EdgeInsets.all(40),
+                          child: Text('${_getMonthLabel(selectedMonth.value)}の履歴はありません', style: const TextStyle(color: Colors.grey)),
                         ),
                       );
                     }
@@ -187,6 +187,17 @@ class HistoryScreen extends HookConsumerWidget {
 
   String _formatNumber(int n) {
     return n.toString().replaceAllMapped(RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'), (m) => '${m[1]},');
+  }
+
+  String _getMonthLabel(String month) {
+    final currentMonth = _getCurrentMonth();
+    if (month == currentMonth) {
+      return '今月';
+    }
+    final parts = month.split('-');
+    final year = parts[0];
+    final monthNum = int.parse(parts[1]);
+    return '$year年${monthNum}月';
   }
 
   Future<void> _generatePdf(

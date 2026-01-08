@@ -69,8 +69,9 @@ class CleaningReportScreen extends HookConsumerWidget {
 
       isSubmitting.value = false;
       
-      // Refresh history
-      ref.invalidate(historyProvider);
+      // Refresh history for the specific month
+      final month = dateController.value.substring(0, 7);
+      ref.invalidate(historyProvider(month));
 
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
