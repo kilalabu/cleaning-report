@@ -12,7 +12,8 @@ class CleaningReportScreen extends HookConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final dateController = useState(DateTime.now().toIso8601String().substring(0, 10));
-    final items = useState<List<_CleaningItem>>([_CleaningItem()]);
+    final idCounter = useState(1);
+    final items = useState<List<CleaningItem>>([CleaningItem(id: 0)]);
     final isSubmitting = useState(false);
 
     Future<void> submit() async {
@@ -137,16 +138,17 @@ class CleaningReportScreen extends HookConsumerWidget {
                 ...items.value.asMap().entries.map((entry) {
                   final index = entry.key;
                   final item = entry.value;
-                  return _CleaningItemCard(
+                  return CleaningItemCard(
+                    key: ValueKey(item.id),
                     item: item,
                     showRemove: items.value.length > 1,
                     onChanged: (updated) {
-                      final newList = List<_CleaningItem>.from(items.value);
+                      final newList = List<CleaningItem>.from(items.value);
                       newList[index] = updated;
                       items.value = newList;
                     },
                     onRemove: () {
-                      final newList = List<_CleaningItem>.from(items.value);
+                      final newList = List<CleaningItem>.from(items.value);
                       newList.removeAt(index);
                       items.value = newList;
                     },
@@ -158,7 +160,9 @@ class CleaningReportScreen extends HookConsumerWidget {
                 // Add button
                 OutlinedButton.icon(
                   onPressed: () {
-                    items.value = [...items.value, _CleaningItem(type: 'extra')];
+                    final newItem = CleaningItem(id: idCounter.value, type: 'extra');
+                    idCounter.value++;
+                    items.value = [...items.value, newItem];
                   },
                   icon: const Icon(Icons.add),
                   label: const Text('業務を追加'),
@@ -190,15 +194,17 @@ class CleaningReportScreen extends HookConsumerWidget {
   }
 }
 
-class _CleaningItem {
+class CleaningItem {
+  final int id;
   String type;
   int duration;
   String? note;
 
-  _CleaningItem({this.type = 'regular', this.duration = 15, this.note});
+  CleaningItem({required this.id, this.type = 'regular', this.duration = 15, this.note});
 
-  _CleaningItem copyWith({String? type, int? duration, String? note}) {
-    return _CleaningItem(
+  CleaningItem copyWith({String? type, int? duration, String? note}) {
+    return CleaningItem(
+      id: this.id,
       type: type ?? this.type,
       duration: duration ?? this.duration,
       note: note ?? this.note,
@@ -206,13 +212,14 @@ class _CleaningItem {
   }
 }
 
-class _CleaningItemCard extends StatelessWidget {
-  final _CleaningItem item;
+class CleaningItemCard extends StatelessWidget {
+  final CleaningItem item;
   final bool showRemove;
-  final ValueChanged<_CleaningItem> onChanged;
+  final ValueChanged<CleaningItem> onChanged;
   final VoidCallback onRemove;
 
-  const _CleaningItemCard({
+  const CleaningItemCard({
+    super.key,
     required this.item,
     required this.showRemove,
     required this.onChanged,
