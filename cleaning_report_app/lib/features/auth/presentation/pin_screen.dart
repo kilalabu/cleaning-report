@@ -128,14 +128,17 @@ class PinScreen extends HookConsumerWidget {
         Row(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            const SizedBox(width: 80),
+            const SizedBox(width: 88), // 他のボタンと同じ幅 (64 + 12*2)
             _keyButton('0', onKeyTap),
-            SizedBox(
-              width: 80,
-              height: 64,
-              child: TextButton(
-                onPressed: onDelete,
-                child: Icon(Icons.backspace_outlined, color: Colors.grey.shade600),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 12),
+              child: SizedBox(
+                width: 64,
+                height: 64,
+                child: IconButton(
+                  onPressed: onDelete,
+                  icon: Icon(Icons.backspace_outlined, color: Colors.grey.shade600),
+                ),
               ),
             ),
           ],
@@ -147,20 +150,25 @@ class PinScreen extends HookConsumerWidget {
   Widget _keyButton(String key, void Function(String) onTap) {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 12),
-      child: SizedBox(
-        width: 64,
-        height: 64,
-        child: ElevatedButton(
-          onPressed: () => onTap(key),
-          style: ElevatedButton.styleFrom(
-            backgroundColor: Colors.grey.shade100,
-            foregroundColor: Colors.black87,
-            elevation: 0,
-            shape: const CircleBorder(),
-          ),
-          child: Text(
-            key,
-            style: const TextStyle(fontSize: 24, fontWeight: FontWeight.w500),
+      child: Material(
+        color: Colors.grey.shade100,
+        shape: const CircleBorder(),
+        child: InkWell(
+          onTap: () => onTap(key),
+          customBorder: const CircleBorder(),
+          child: SizedBox(
+            width: 64,
+            height: 64,
+            child: Center(
+              child: Text(
+                key,
+                style: const TextStyle(
+                  fontSize: 24,
+                  fontWeight: FontWeight.w500,
+                  height: 1.0,
+                ),
+              ),
+            ),
           ),
         ),
       ),
