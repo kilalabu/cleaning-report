@@ -3,6 +3,7 @@ import 'package:flutter_hooks/flutter_hooks.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../core/theme/app_theme.dart';
 import '../providers/auth_provider.dart';
 
 class PinScreen extends HookConsumerWidget {
@@ -20,85 +21,146 @@ class PinScreen extends HookConsumerWidget {
         errorMessage.value = null;
 
         if (pinController.value.length == 4) {
-          _verifyPin(context, ref, pinController.value, isLoading, errorMessage, pinController);
+          _verifyPin(context, ref, pinController.value, isLoading, errorMessage,
+              pinController);
         }
       }
     }
 
     void onDelete() {
       if (pinController.value.isNotEmpty) {
-        pinController.value = pinController.value.substring(0, pinController.value.length - 1);
+        pinController.value =
+            pinController.value.substring(0, pinController.value.length - 1);
         errorMessage.value = null;
       }
     }
 
     return Scaffold(
-      backgroundColor: Colors.white,
-      body: SafeArea(
-        child: Center(
-          child: ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 400),
-            child: Padding(
-              padding: const EdgeInsets.all(32),
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Text(
-                    'Cleaning Report',
-                    style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                          fontWeight: FontWeight.bold,
-                          color: Theme.of(context).colorScheme.primary,
+      body: Container(
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+            colors: [
+              AppTheme.primary.withOpacity(0.05),
+              AppTheme.background,
+            ],
+          ),
+        ),
+        child: SafeArea(
+          child: Center(
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 400),
+              child: Padding(
+                padding: const EdgeInsets.all(32),
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    // ロゴエリア
+                    Container(
+                      width: 64,
+                      height: 64,
+                      decoration: BoxDecoration(
+                        gradient: LinearGradient(
+                          begin: Alignment.topLeft,
+                          end: Alignment.bottomRight,
+                          colors: [AppTheme.primary, AppTheme.primaryLight],
                         ),
-                  ),
-                  const SizedBox(height: 8),
-                  Text(
-                    'かんたん清掃報告システム',
-                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                          color: Colors.grey,
-                        ),
-                  ),
-                  const SizedBox(height: 48),
-                  
-                  // PIN dots
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: List.generate(4, (index) {
-                      final isFilled = index < pinController.value.length;
-                      return Container(
-                        margin: const EdgeInsets.symmetric(horizontal: 12),
-                        width: 16,
-                        height: 16,
-                        decoration: BoxDecoration(
-                          shape: BoxShape.circle,
-                          color: isFilled
-                              ? Theme.of(context).colorScheme.primary
-                              : Colors.grey.shade200,
-                          border: Border.all(
-                            color: isFilled
-                                ? Theme.of(context).colorScheme.primary
-                                : Colors.grey.shade400,
+                        borderRadius: BorderRadius.circular(20),
+                        boxShadow: [
+                          BoxShadow(
+                            color: AppTheme.primary.withOpacity(0.35),
+                            blurRadius: 16,
+                            offset: const Offset(0, 6),
                           ),
-                        ),
-                      );
-                    }),
-                  ),
-                  
-                  if (errorMessage.value != null) ...[
+                        ],
+                      ),
+                      child: const Icon(
+                        Icons.auto_awesome,
+                        color: Colors.white,
+                        size: 32,
+                      ),
+                    ),
                     const SizedBox(height: 16),
                     Text(
-                      errorMessage.value!,
-                      style: TextStyle(color: Theme.of(context).colorScheme.error),
+                      'Cleaning Report',
+                      style:
+                          Theme.of(context).textTheme.headlineSmall?.copyWith(
+                                fontWeight: FontWeight.bold,
+                                color: AppTheme.foreground,
+                                letterSpacing: -0.5,
+                              ),
                     ),
+                    const SizedBox(height: 4),
+                    Text(
+                      '暗証番号を入力',
+                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                            color: AppTheme.mutedForeground,
+                          ),
+                    ),
+                    const SizedBox(height: 32),
+
+                    // PINドット
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: List.generate(4, (index) {
+                        final isFilled = index < pinController.value.length;
+                        final hasError = errorMessage.value != null;
+                        return AnimatedContainer(
+                          duration: const Duration(milliseconds: 200),
+                          margin: const EdgeInsets.symmetric(horizontal: 10),
+                          width: 16,
+                          height: 16,
+                          decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            color: isFilled
+                                ? (hasError
+                                    ? AppTheme.destructive
+                                    : AppTheme.primary)
+                                : AppTheme.border,
+                            boxShadow: isFilled
+                                ? [
+                                    BoxShadow(
+                                      color: (hasError
+                                              ? AppTheme.destructive
+                                              : AppTheme.primary)
+                                          .withOpacity(0.4),
+                                      blurRadius: 8,
+                                      offset: const Offset(0, 2),
+                                    ),
+                                  ]
+                                : null,
+                          ),
+                        );
+                      }),
+                    ),
+
+                    // エラーメッセージ
+                    SizedBox(
+                      height: 40,
+                      child: errorMessage.value != null
+                          ? Padding(
+                              padding: const EdgeInsets.only(top: 16),
+                              child: Text(
+                                errorMessage.value!,
+                                style: TextStyle(
+                                  color: AppTheme.destructive,
+                                  fontWeight: FontWeight.w500,
+                                ),
+                              ),
+                            )
+                          : null,
+                    ),
+
+                    const SizedBox(height: 24),
+
+                    // テンキー
+                    if (isLoading.value)
+                      const CircularProgressIndicator()
+                    else
+                      _buildKeypad(context, onKeyTap, onDelete),
                   ],
-                  
-                  const SizedBox(height: 48),
-                  
-                  // Keypad
-                  if (isLoading.value)
-                    const CircularProgressIndicator()
-                  else
-                    _buildKeypad(onKeyTap, onDelete),
-                ],
+                ),
               ),
             ),
           ),
@@ -107,37 +169,57 @@ class PinScreen extends HookConsumerWidget {
     );
   }
 
-  Widget _buildKeypad(void Function(String) onKeyTap, VoidCallback onDelete) {
+  Widget _buildKeypad(BuildContext context, void Function(String) onKeyTap,
+      VoidCallback onDelete) {
     return Column(
       children: [
         Row(
           mainAxisAlignment: MainAxisAlignment.center,
-          children: ['1', '2', '3'].map((k) => _keyButton(k, onKeyTap)).toList(),
+          children: ['1', '2', '3']
+              .map((k) => _keyButton(context, k, onKeyTap))
+              .toList(),
         ),
-        const SizedBox(height: 16),
+        const SizedBox(height: 12),
         Row(
           mainAxisAlignment: MainAxisAlignment.center,
-          children: ['4', '5', '6'].map((k) => _keyButton(k, onKeyTap)).toList(),
+          children: ['4', '5', '6']
+              .map((k) => _keyButton(context, k, onKeyTap))
+              .toList(),
         ),
-        const SizedBox(height: 16),
+        const SizedBox(height: 12),
         Row(
           mainAxisAlignment: MainAxisAlignment.center,
-          children: ['7', '8', '9'].map((k) => _keyButton(k, onKeyTap)).toList(),
+          children: ['7', '8', '9']
+              .map((k) => _keyButton(context, k, onKeyTap))
+              .toList(),
         ),
-        const SizedBox(height: 16),
+        const SizedBox(height: 12),
         Row(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            const SizedBox(width: 88), // 他のボタンと同じ幅 (64 + 12*2)
-            _keyButton('0', onKeyTap),
+            const SizedBox(width: 80),
+            _keyButton(context, '0', onKeyTap),
             Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 12),
+              padding: const EdgeInsets.symmetric(horizontal: 8),
               child: SizedBox(
                 width: 64,
                 height: 64,
-                child: IconButton(
-                  onPressed: onDelete,
-                  icon: Icon(Icons.backspace_outlined, color: Colors.grey.shade600),
+                child: Material(
+                  color: AppTheme.card,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(20),
+                    side: BorderSide(color: AppTheme.border.withOpacity(0.5)),
+                  ),
+                  child: InkWell(
+                    onTap: onDelete,
+                    customBorder: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(20),
+                    ),
+                    child: Icon(
+                      Icons.backspace_outlined,
+                      color: AppTheme.mutedForeground,
+                    ),
+                  ),
                 ),
               ),
             ),
@@ -147,24 +229,35 @@ class PinScreen extends HookConsumerWidget {
     );
   }
 
-  Widget _keyButton(String key, void Function(String) onTap) {
+  Widget _keyButton(
+      BuildContext context, String key, void Function(String) onTap) {
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 12),
+      padding: const EdgeInsets.symmetric(horizontal: 8),
       child: Material(
-        color: Colors.grey.shade100,
-        shape: const CircleBorder(),
+        color: AppTheme.card,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(20),
+          side: BorderSide(color: AppTheme.border.withOpacity(0.5)),
+        ),
+        elevation: 0,
+        shadowColor: Colors.black.withOpacity(0.1),
         child: InkWell(
           onTap: () => onTap(key),
-          customBorder: const CircleBorder(),
+          customBorder: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(20),
+          ),
+          splashColor: AppTheme.primary.withOpacity(0.1),
+          highlightColor: AppTheme.primary.withOpacity(0.05),
           child: SizedBox(
             width: 64,
             height: 64,
             child: Center(
               child: Text(
                 key,
-                style: const TextStyle(
+                style: TextStyle(
                   fontSize: 24,
-                  fontWeight: FontWeight.w500,
+                  fontWeight: FontWeight.w600,
+                  color: AppTheme.foreground,
                   height: 1.0,
                 ),
               ),
@@ -184,12 +277,12 @@ class PinScreen extends HookConsumerWidget {
     ValueNotifier<String> pinController,
   ) async {
     isLoading.value = true;
-    
+
     final authNotifier = ref.read(authNotifierProvider.notifier);
     final success = await authNotifier.verifyPin(pin);
-    
+
     isLoading.value = false;
-    
+
     if (success && context.mounted) {
       context.go('/report/cleaning');
     } else {

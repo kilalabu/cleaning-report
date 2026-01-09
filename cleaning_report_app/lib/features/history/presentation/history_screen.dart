@@ -4,6 +4,8 @@ import 'package:hooks_riverpod/hooks_riverpod.dart';
 
 import 'dart:html' as html;
 
+import '../../../core/theme/app_theme.dart';
+import '../../../core/widgets/confirm_dialog.dart';
 import '../providers/history_provider.dart';
 import '../../auth/providers/auth_provider.dart';
 
@@ -21,44 +23,30 @@ class HistoryScreen extends HookConsumerWidget {
     final totalAmount = ref.watch(totalAmountProvider(selectedMonth.value));
 
     return Scaffold(
-      backgroundColor: Colors.grey.shade50,
+      backgroundColor: AppTheme.background,
       appBar: AppBar(
         title: const Text('履歴・編集'),
-        backgroundColor: Colors.white,
-        surfaceTintColor: Colors.white,
       ),
       body: SafeArea(
         child: SingleChildScrollView(
-          padding: const EdgeInsets.all(20),
+          padding: const EdgeInsets.all(16),
           child: ConstrainedBox(
             constraints: const BoxConstraints(maxWidth: 600),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                // 合計サマリー
+                // 合計サマリーカード
                 Container(
-                  padding: const EdgeInsets.all(24),
-                  decoration: BoxDecoration(
-                    gradient: LinearGradient(
-                      colors: [
-                        Theme.of(context).colorScheme.primary,
-                        Theme.of(context).colorScheme.primary.withOpacity(0.8),
-                      ],
-                    ),
-                    borderRadius: BorderRadius.circular(16),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Theme.of(context).colorScheme.primary.withOpacity(0.3),
-                        blurRadius: 20,
-                        offset: const Offset(0, 8),
-                      ),
-                    ],
-                  ),
+                  padding: const EdgeInsets.all(20),
+                  decoration: AppTheme.summaryCardDecoration,
                   child: Column(
                     children: [
                       Text(
-                        '${_getMonthLabel(selectedMonth.value)}の請求合計 (税込)',
-                        style: TextStyle(color: Colors.white.withOpacity(0.9), fontSize: 14),
+                        '${_getMonthLabel(selectedMonth.value)}の請求合計',
+                        style: TextStyle(
+                          color: Colors.white.withOpacity(0.85),
+                          fontSize: 14,
+                        ),
                       ),
                       const SizedBox(height: 8),
                       Text(
@@ -67,99 +55,177 @@ class HistoryScreen extends HookConsumerWidget {
                           color: Colors.white,
                           fontSize: 36,
                           fontWeight: FontWeight.bold,
+                          letterSpacing: -1,
                         ),
                       ),
                     ],
                   ),
                 ),
 
-                const SizedBox(height: 24),
+                const SizedBox(height: 16),
 
                 // PDF発行カード
-                Card(
-                  child: Padding(
-                    padding: const EdgeInsets.all(16),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          '請求書発行',
-                          style: Theme.of(context).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w600),
+                Container(
+                  decoration: AppTheme.cardDecoration,
+                  padding: const EdgeInsets.all(16),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        '請求書発行',
+                        style: TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w500,
+                          color: AppTheme.mutedForeground,
                         ),
-                        const SizedBox(height: 12),
-                        Row(
-                          children: [
-                            Expanded(
-                              child: Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 12),
-                                decoration: BoxDecoration(
-                                  color: Colors.grey.shade100,
-                                  borderRadius: BorderRadius.circular(12),
+                      ),
+                      const SizedBox(height: 12),
+                      Row(
+                        children: [
+                          Expanded(
+                            child: Container(
+                              padding:
+                                  const EdgeInsets.symmetric(horizontal: 12),
+                              decoration: AppTheme.inputDecoration,
+                              child: DropdownButtonHideUnderline(
+                                child: DropdownButton<String>(
+                                  value: selectedMonth.value,
+                                  isExpanded: true,
+                                  icon: Icon(Icons.expand_more,
+                                      color: AppTheme.mutedForeground),
+                                  items: _generateMonthOptions().map((m) {
+                                    return DropdownMenuItem(
+                                      value: m,
+                                      child: Text(_getMonthLabel(m)),
+                                    );
+                                  }).toList(),
+                                  onChanged: (v) => selectedMonth.value =
+                                      v ?? selectedMonth.value,
                                 ),
-                                child: DropdownButtonHideUnderline(
-                                  child: DropdownButton<String>(
-                                    value: selectedMonth.value,
-                                    isExpanded: true,
-                                    items: _generateMonthOptions().map((m) {
-                                      return DropdownMenuItem(value: m, child: Text(m));
-                                    }).toList(),
-                                    onChanged: (v) => selectedMonth.value = v ?? selectedMonth.value,
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                          Container(
+                            decoration: BoxDecoration(
+                              gradient: LinearGradient(
+                                colors: [
+                                  AppTheme.primary,
+                                  AppTheme.primaryLight
+                                ],
+                              ),
+                              borderRadius: BorderRadius.circular(12),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: AppTheme.primary.withOpacity(0.3),
+                                  blurRadius: 8,
+                                  offset: const Offset(0, 2),
+                                ),
+                              ],
+                            ),
+                            child: Material(
+                              color: Colors.transparent,
+                              child: InkWell(
+                                onTap: isGeneratingPdf.value
+                                    ? null
+                                    : () => _generatePdf(context, ref,
+                                        selectedMonth.value, isGeneratingPdf),
+                                borderRadius: BorderRadius.circular(12),
+                                child: SizedBox(
+                                  width: 48,
+                                  height: 48,
+                                  child: Center(
+                                    child: isGeneratingPdf.value
+                                        ? const SizedBox(
+                                            width: 20,
+                                            height: 20,
+                                            child: CircularProgressIndicator(
+                                              strokeWidth: 2,
+                                              color: Colors.white,
+                                            ),
+                                          )
+                                        : const Icon(Icons.download,
+                                            color: Colors.white),
                                   ),
                                 ),
                               ),
                             ),
-                            const SizedBox(width: 12),
-                            ElevatedButton(
-                              onPressed: isGeneratingPdf.value
-                                  ? null
-                                  : () => _generatePdf(context, ref, selectedMonth.value, isGeneratingPdf),
-                              style: ElevatedButton.styleFrom(
-                                padding: const EdgeInsets.all(16),
-                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                              ),
-                              child: isGeneratingPdf.value
-                                  ? const SizedBox(
-                                      width: 20,
-                                      height: 20,
-                                      child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
-                                    )
-                                  : const Icon(Icons.download),
-                            ),
-                          ],
-                        ),
-                      ],
-                    ),
+                          ),
+                        ],
+                      ),
+                    ],
                   ),
                 ),
 
-                const SizedBox(height: 24),
+                const SizedBox(height: 20),
+
+                // 履歴ラベル
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 4),
+                  child: Text(
+                    '履歴',
+                    style: TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w500,
+                      color: AppTheme.mutedForeground,
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 8),
 
                 // 履歴リスト
                 historyAsync.when(
                   data: (items) {
                     if (items.isEmpty) {
-                      return Center(
-                        child: Padding(
-                          padding: const EdgeInsets.all(40),
-                          child: Text('${_getMonthLabel(selectedMonth.value)}の履歴はありません', style: const TextStyle(color: Colors.grey)),
+                      return Container(
+                        padding: const EdgeInsets.all(32),
+                        decoration: BoxDecoration(
+                          borderRadius: BorderRadius.circular(16),
+                          border: Border.all(
+                            color: AppTheme.border,
+                            width: 2,
+                            style: BorderStyle.solid,
+                          ),
+                        ),
+                        child: Center(
+                          child: Text(
+                            'この月の履歴はありません',
+                            style: TextStyle(color: AppTheme.mutedForeground),
+                          ),
                         ),
                       );
                     }
-                  return Column(
-                      children: items.map((item) => _HistoryItemTile(
-                        item: item,
-                        onDelete: () => _deleteItem(context, ref, item['id'] as String, selectedMonth.value),
-                        onEdit: () => _editItem(context, ref, item, selectedMonth.value), // Add this
-                      )).toList(),
+                    return Column(
+                      children: items
+                          .map((item) => Padding(
+                                padding: const EdgeInsets.only(bottom: 8),
+                                child: _HistoryItemTile(
+                                  item: item,
+                                  onDelete: () => _deleteItem(
+                                      context,
+                                      ref,
+                                      item['id'] as String,
+                                      selectedMonth.value),
+                                  onEdit: () => _editItem(
+                                      context, ref, item, selectedMonth.value),
+                                ),
+                              ))
+                          .toList(),
                     );
                   },
                   loading: () => const Center(
-                    child: Padding(padding: EdgeInsets.all(40), child: CircularProgressIndicator()),
+                    child: Padding(
+                      padding: EdgeInsets.all(40),
+                      child: CircularProgressIndicator(),
+                    ),
                   ),
                   error: (e, _) => Center(
                     child: Padding(
                       padding: const EdgeInsets.all(40),
-                      child: Text('エラー: $e', style: const TextStyle(color: Colors.red)),
+                      child: Text(
+                        'エラー: $e',
+                        style: TextStyle(color: AppTheme.destructive),
+                      ),
                     ),
                   ),
                 ),
@@ -185,7 +251,8 @@ class HistoryScreen extends HookConsumerWidget {
   }
 
   String _formatNumber(int n) {
-    return n.toString().replaceAllMapped(RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'), (m) => '${m[1]},');
+    return n.toString().replaceAllMapped(
+        RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'), (m) => '${m[1]},');
   }
 
   String _getMonthLabel(String month) {
@@ -216,7 +283,6 @@ class HistoryScreen extends HookConsumerWidget {
       final dataUrl = result['data'] as String;
       final filename = result['filename'] as String;
 
-      // Trigger download
       final anchor = html.AnchorElement(href: dataUrl)
         ..setAttribute('download', filename)
         ..click();
@@ -235,21 +301,9 @@ class HistoryScreen extends HookConsumerWidget {
     }
   }
 
-  Future<void> _deleteItem(BuildContext context, WidgetRef ref, String id, String month) async {
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('削除確認'),
-        content: const Text('このデータを削除しますか？'),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('キャンセル')),
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, true),
-            child: const Text('削除', style: TextStyle(color: Colors.red)),
-          ),
-        ],
-      ),
-    );
+  Future<void> _deleteItem(
+      BuildContext context, WidgetRef ref, String id, String month) async {
+    final confirmed = await showDeleteConfirmDialog(context: context);
 
     if (confirmed == true) {
       final api = ref.read(apiClientProvider);
@@ -257,19 +311,23 @@ class HistoryScreen extends HookConsumerWidget {
       ref.invalidate(historyProvider(month));
 
       if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('削除しました')));
+        ScaffoldMessenger.of(context)
+            .showSnackBar(const SnackBar(content: Text('削除しました')));
       }
     }
   }
 
-  Future<void> _editItem(BuildContext context, WidgetRef ref, Map<String, dynamic> item, String month) async {
+  Future<void> _editItem(BuildContext context, WidgetRef ref,
+      Map<String, dynamic> item, String month) async {
     final isWork = item['type'] == 'work';
-    
+
     await showModalBottomSheet(
       context: context,
       isScrollControlled: true,
       useSafeArea: true,
+      backgroundColor: AppTheme.background,
       builder: (ctx) => Scaffold(
+        backgroundColor: AppTheme.background,
         appBar: AppBar(
           title: Text(isWork ? '業務内容の修正' : '立替費用の修正'),
           leading: IconButton(
@@ -279,7 +337,7 @@ class HistoryScreen extends HookConsumerWidget {
         ),
         body: SafeArea(
           child: SingleChildScrollView(
-            padding: const EdgeInsets.all(20),
+            padding: const EdgeInsets.all(16),
             child: ConstrainedBox(
               constraints: const BoxConstraints(maxWidth: 600),
               child: isWork
@@ -299,61 +357,89 @@ class HistoryScreen extends HookConsumerWidget {
   }
 }
 
-
 class _HistoryItemTile extends StatelessWidget {
   final Map<String, dynamic> item;
   final VoidCallback onDelete;
   final VoidCallback onEdit;
 
-  const _HistoryItemTile({required this.item, required this.onDelete, required this.onEdit});
+  const _HistoryItemTile({
+    required this.item,
+    required this.onDelete,
+    required this.onEdit,
+  });
 
   @override
   Widget build(BuildContext context) {
     final isWork = item['type'] == 'work';
     final icon = isWork ? Icons.cleaning_services : Icons.receipt_long;
-    final color = isWork ? Theme.of(context).colorScheme.primary : Colors.green;
+    final iconColor = isWork ? AppTheme.primary : AppTheme.accent;
+    final iconBgColor = isWork
+        ? AppTheme.primary.withOpacity(0.15)
+        : AppTheme.accent.withOpacity(0.15);
 
-    return Card(
-      margin: const EdgeInsets.only(bottom: 8),
-      child: Padding(
-        padding: const EdgeInsets.all(12),
-        child: Row(
-          children: [
-            Container(
-              padding: const EdgeInsets.all(10),
-
-              decoration: BoxDecoration(color: color.withOpacity(0.1), shape: BoxShape.circle),
-              child: Icon(icon, color: color, size: 20),
+    return Container(
+      decoration: AppTheme.cardDecoration,
+      padding: const EdgeInsets.all(12),
+      child: Row(
+        children: [
+          // アイコンバッジ
+          Container(
+            width: 44,
+            height: 44,
+            decoration: BoxDecoration(
+              color: iconBgColor,
+              borderRadius: BorderRadius.circular(12),
             ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(item['item'] ?? '', style: const TextStyle(fontWeight: FontWeight.w500)),
-                  Text(
-                    '${item['date'] ?? ''}${item['note'] != null && item['note'].isNotEmpty ? ' ・ ${item['note']}' : ''}',
-                    style: TextStyle(color: Colors.grey.shade600, fontSize: 12),
+            child: Icon(icon, color: iconColor, size: 22),
+          ),
+          const SizedBox(width: 12),
+
+          // 内容
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  item['item'] ?? '',
+                  style: const TextStyle(fontWeight: FontWeight.w600),
+                ),
+                Text(
+                  '${item['date'] ?? ''}${item['note'] != null && item['note'].isNotEmpty ? ' ・ ${item['note']}' : ''}',
+                  style: TextStyle(
+                    color: AppTheme.mutedForeground,
+                    fontSize: 12,
                   ),
-                ],
-              ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ],
             ),
-            Text(
-              '¥${item['amount'] ?? 0}',
-              style: const TextStyle(fontWeight: FontWeight.w600),
-            ),
-            IconButton(
-              icon: const Icon(Icons.edit, size: 20, color: Colors.grey),
-              onPressed: onEdit,
-              tooltip: '編集',
-            ),
-            IconButton(
-              icon: Icon(Icons.delete_outline, color: Colors.red.shade300),
-              onPressed: onDelete,
-              tooltip: '削除',
-            ),
-          ],
-        ),
+          ),
+
+          // 金額
+          Text(
+            '¥${item['amount'] ?? 0}',
+            style: const TextStyle(fontWeight: FontWeight.bold),
+          ),
+
+          // 編集ボタン
+          IconButton(
+            icon: Icon(Icons.edit_outlined,
+                size: 20, color: AppTheme.mutedForeground),
+            onPressed: onEdit,
+            tooltip: '編集',
+            splashRadius: 20,
+          ),
+
+          // 削除ボタン
+          IconButton(
+            icon: Icon(Icons.delete_outline,
+                size: 20, color: AppTheme.destructive.withOpacity(0.7)),
+            onPressed: onDelete,
+            tooltip: '削除',
+            splashRadius: 20,
+          ),
+        ],
       ),
     );
   }
