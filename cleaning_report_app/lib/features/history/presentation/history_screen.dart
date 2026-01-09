@@ -25,7 +25,7 @@ class HistoryScreen extends HookConsumerWidget {
     return Scaffold(
       backgroundColor: AppTheme.background,
       appBar: AppBar(
-        title: const Text('履歴・編集'),
+        title: const Text('履歴'),
       ),
       body: SafeArea(
         child: SingleChildScrollView(
@@ -68,110 +68,77 @@ class HistoryScreen extends HookConsumerWidget {
                 Container(
                   decoration: AppTheme.cardDecoration,
                   padding: const EdgeInsets.all(16),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
+                  child: Row(
                     children: [
-                      Text(
-                        '請求書発行',
-                        style: TextStyle(
-                          fontSize: 13,
-                          fontWeight: FontWeight.w500,
-                          color: AppTheme.mutedForeground,
+                      Expanded(
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 12),
+                          decoration: AppTheme.inputDecoration,
+                          child: DropdownButtonHideUnderline(
+                            child: DropdownButton<String>(
+                              value: selectedMonth.value,
+                              isExpanded: true,
+                              icon: Icon(Icons.expand_more,
+                                  color: AppTheme.mutedForeground),
+                              items: _generateMonthOptions().map((m) {
+                                return DropdownMenuItem(
+                                  value: m,
+                                  child: Text(_getMonthLabel(m)),
+                                );
+                              }).toList(),
+                              onChanged: (v) => selectedMonth.value =
+                                  v ?? selectedMonth.value,
+                            ),
+                          ),
                         ),
                       ),
-                      const SizedBox(height: 12),
-                      Row(
-                        children: [
-                          Expanded(
-                            child: Container(
-                              padding:
-                                  const EdgeInsets.symmetric(horizontal: 12),
-                              decoration: AppTheme.inputDecoration,
-                              child: DropdownButtonHideUnderline(
-                                child: DropdownButton<String>(
-                                  value: selectedMonth.value,
-                                  isExpanded: true,
-                                  icon: Icon(Icons.expand_more,
-                                      color: AppTheme.mutedForeground),
-                                  items: _generateMonthOptions().map((m) {
-                                    return DropdownMenuItem(
-                                      value: m,
-                                      child: Text(_getMonthLabel(m)),
-                                    );
-                                  }).toList(),
-                                  onChanged: (v) => selectedMonth.value =
-                                      v ?? selectedMonth.value,
-                                ),
+                      const SizedBox(width: 12),
+                      Container(
+                        decoration: BoxDecoration(
+                          gradient: LinearGradient(
+                            colors: [AppTheme.primary, AppTheme.primaryLight],
+                          ),
+                          borderRadius: BorderRadius.circular(12),
+                          boxShadow: [
+                            BoxShadow(
+                              color: AppTheme.primary.withOpacity(0.3),
+                              blurRadius: 8,
+                              offset: const Offset(0, 2),
+                            ),
+                          ],
+                        ),
+                        child: Material(
+                          color: Colors.transparent,
+                          child: InkWell(
+                            onTap: isGeneratingPdf.value
+                                ? null
+                                : () => _generatePdf(context, ref,
+                                    selectedMonth.value, isGeneratingPdf),
+                            borderRadius: BorderRadius.circular(12),
+                            child: SizedBox(
+                              width: 48,
+                              height: 48,
+                              child: Center(
+                                child: isGeneratingPdf.value
+                                    ? const SizedBox(
+                                        width: 20,
+                                        height: 20,
+                                        child: CircularProgressIndicator(
+                                          strokeWidth: 2,
+                                          color: Colors.white,
+                                        ),
+                                      )
+                                    : const Icon(Icons.download,
+                                        color: Colors.white),
                               ),
                             ),
                           ),
-                          const SizedBox(width: 12),
-                          Container(
-                            decoration: BoxDecoration(
-                              gradient: LinearGradient(
-                                colors: [
-                                  AppTheme.primary,
-                                  AppTheme.primaryLight
-                                ],
-                              ),
-                              borderRadius: BorderRadius.circular(12),
-                              boxShadow: [
-                                BoxShadow(
-                                  color: AppTheme.primary.withOpacity(0.3),
-                                  blurRadius: 8,
-                                  offset: const Offset(0, 2),
-                                ),
-                              ],
-                            ),
-                            child: Material(
-                              color: Colors.transparent,
-                              child: InkWell(
-                                onTap: isGeneratingPdf.value
-                                    ? null
-                                    : () => _generatePdf(context, ref,
-                                        selectedMonth.value, isGeneratingPdf),
-                                borderRadius: BorderRadius.circular(12),
-                                child: SizedBox(
-                                  width: 48,
-                                  height: 48,
-                                  child: Center(
-                                    child: isGeneratingPdf.value
-                                        ? const SizedBox(
-                                            width: 20,
-                                            height: 20,
-                                            child: CircularProgressIndicator(
-                                              strokeWidth: 2,
-                                              color: Colors.white,
-                                            ),
-                                          )
-                                        : const Icon(Icons.download,
-                                            color: Colors.white),
-                                  ),
-                                ),
-                              ),
-                            ),
-                          ),
-                        ],
+                        ),
                       ),
                     ],
                   ),
                 ),
-
                 const SizedBox(height: 20),
-
-                // 履歴ラベル
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 4),
-                  child: Text(
-                    '履歴',
-                    style: TextStyle(
-                      fontSize: 13,
-                      fontWeight: FontWeight.w500,
-                      color: AppTheme.mutedForeground,
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 8),
 
                 // 履歴リスト
                 historyAsync.when(

@@ -128,7 +128,7 @@ class ExpenseReportForm extends HookConsumerWidget {
                 Text(
                   '日付',
                   style: TextStyle(
-                    fontSize: 13,
+                    fontSize: 14,
                     fontWeight: FontWeight.w500,
                     color: AppTheme.mutedForeground,
                   ),
@@ -187,7 +187,7 @@ class ExpenseReportForm extends HookConsumerWidget {
                 Text(
                   '品目名',
                   style: TextStyle(
-                    fontSize: 13,
+                    fontSize: 14,
                     fontWeight: FontWeight.w500,
                     color: AppTheme.mutedForeground,
                   ),
@@ -216,7 +216,7 @@ class ExpenseReportForm extends HookConsumerWidget {
                 Text(
                   '金額（税込）',
                   style: TextStyle(
-                    fontSize: 13,
+                    fontSize: 14,
                     fontWeight: FontWeight.w500,
                     color: AppTheme.mutedForeground,
                   ),
@@ -263,7 +263,7 @@ class ExpenseReportForm extends HookConsumerWidget {
                 Text(
                   '備考（任意）',
                   style: TextStyle(
-                    fontSize: 13,
+                    fontSize: 14,
                     fontWeight: FontWeight.w500,
                     color: AppTheme.mutedForeground,
                   ),

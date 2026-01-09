@@ -148,7 +148,7 @@ class CleaningReportForm extends HookConsumerWidget {
               Text(
                 '日付',
                 style: TextStyle(
-                  fontSize: 13,
+                  fontSize: 14,
                   fontWeight: FontWeight.w500,
                   color: AppTheme.mutedForeground,
                 ),
@@ -334,7 +334,7 @@ class _CleaningItemCard extends StatelessWidget {
                 Text(
                   '業務内容',
                   style: TextStyle(
-                    fontSize: 13,
+                    fontSize: 14,
                     fontWeight: FontWeight.w500,
                     color: AppTheme.mutedForeground,
                   ),
@@ -389,7 +389,7 @@ class _CleaningItemCard extends StatelessWidget {
               Text(
                 '作業時間',
                 style: TextStyle(
-                  fontSize: 13,
+                  fontSize: 14,
                   fontWeight: FontWeight.w500,
                   color: AppTheme.mutedForeground,
                 ),
@@ -425,7 +425,7 @@ class _CleaningItemCard extends StatelessWidget {
               Text(
                 '備考',
                 style: TextStyle(
-                  fontSize: 13,
+                  fontSize: 14,
                   fontWeight: FontWeight.w500,
                   color: AppTheme.mutedForeground,
                 ),
