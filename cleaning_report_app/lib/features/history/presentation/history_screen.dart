@@ -1,12 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_hooks/flutter_hooks.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
-import 'package:go_router/go_router.dart';
+
 import 'dart:html' as html;
-import 'dart:convert';
 
 import '../providers/history_provider.dart';
 import '../../auth/providers/auth_provider.dart';
+
+import '../../report/presentation/cleaning_report_screen.dart';
+import '../../report/presentation/expense_report_screen.dart';
 
 class HistoryScreen extends HookConsumerWidget {
   const HistoryScreen({super.key});
@@ -33,7 +35,7 @@ class HistoryScreen extends HookConsumerWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                // Total Summary
+                // 合計サマリー
                 Container(
                   padding: const EdgeInsets.all(24),
                   decoration: BoxDecoration(
@@ -73,7 +75,7 @@ class HistoryScreen extends HookConsumerWidget {
 
                 const SizedBox(height: 24),
 
-                // PDF Generation Card
+                // PDF発行カード
                 Card(
                   child: Padding(
                     padding: const EdgeInsets.all(16),
@@ -132,7 +134,7 @@ class HistoryScreen extends HookConsumerWidget {
 
                 const SizedBox(height: 24),
 
-                // History List
+                // 履歴リスト
                 historyAsync.when(
                   data: (items) {
                     if (items.isEmpty) {
@@ -143,10 +145,11 @@ class HistoryScreen extends HookConsumerWidget {
                         ),
                       );
                     }
-                    return Column(
+                  return Column(
                       children: items.map((item) => _HistoryItemTile(
                         item: item,
                         onDelete: () => _deleteItem(context, ref, item['id'] as String, selectedMonth.value),
+                        onEdit: () => _editItem(context, ref, item, selectedMonth.value), // Add this
                       )).toList(),
                     );
                   },
@@ -258,13 +261,51 @@ class HistoryScreen extends HookConsumerWidget {
       }
     }
   }
+
+  Future<void> _editItem(BuildContext context, WidgetRef ref, Map<String, dynamic> item, String month) async {
+    final isWork = item['type'] == 'work';
+    
+    await showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      useSafeArea: true,
+      builder: (ctx) => Scaffold(
+        appBar: AppBar(
+          title: Text(isWork ? '業務内容の修正' : '立替費用の修正'),
+          leading: IconButton(
+            icon: const Icon(Icons.close),
+            onPressed: () => Navigator.pop(ctx),
+          ),
+        ),
+        body: SafeArea(
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.all(20),
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 600),
+              child: isWork
+                  ? CleaningReportForm(
+                      initialItem: item,
+                      onSuccess: () => Navigator.pop(ctx),
+                    )
+                  : ExpenseReportForm(
+                      initialItem: item,
+                      onSuccess: () => Navigator.pop(ctx),
+                    ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
 }
+
 
 class _HistoryItemTile extends StatelessWidget {
   final Map<String, dynamic> item;
   final VoidCallback onDelete;
+  final VoidCallback onEdit;
 
-  const _HistoryItemTile({required this.item, required this.onDelete});
+  const _HistoryItemTile({required this.item, required this.onDelete, required this.onEdit});
 
   @override
   Widget build(BuildContext context) {
@@ -280,6 +321,7 @@ class _HistoryItemTile extends StatelessWidget {
           children: [
             Container(
               padding: const EdgeInsets.all(10),
+
               decoration: BoxDecoration(color: color.withOpacity(0.1), shape: BoxShape.circle),
               child: Icon(icon, color: color, size: 20),
             ),
@@ -301,8 +343,14 @@ class _HistoryItemTile extends StatelessWidget {
               style: const TextStyle(fontWeight: FontWeight.w600),
             ),
             IconButton(
+              icon: const Icon(Icons.edit, size: 20, color: Colors.grey),
+              onPressed: onEdit,
+              tooltip: '編集',
+            ),
+            IconButton(
               icon: Icon(Icons.delete_outline, color: Colors.red.shade300),
               onPressed: onDelete,
+              tooltip: '削除',
             ),
           ],
         ),

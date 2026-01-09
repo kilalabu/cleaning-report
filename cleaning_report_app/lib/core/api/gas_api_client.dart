@@ -3,11 +3,12 @@ import 'package:http/http.dart' as http;
 
 /// API Client for Google Apps Script backend
 class GasApiClient {
-  // TODO: Replace with your deployed GAS Web App URL
-  static const String baseUrl = 'https://script.google.com/macros/s/AKfycbxY07AZ0lga9fonqdjO9LyI6_HhB0C7LrPNDorBooUNjkd0tcOhCVD8EmzSChEZiiNtAQ/exec';
+  static const String baseUrl =
+      'https://script.google.com/macros/s/AKfycbwj8_EA7OKWZt--M0rJCg0Repe-mPnfFdtXEHElgT89LiLUXAxIg7RpDtEQDk5RdFEDog/exec';
 
   /// GET request helper with structured error handling
-  Future<Map<String, dynamic>> get(String action, {Map<String, String>? params}) async {
+  Future<Map<String, dynamic>> get(String action,
+      {Map<String, String>? params}) async {
     final queryParams = {'action': action, ...?params};
     final uri = Uri.parse(baseUrl).replace(queryParameters: queryParams);
 
@@ -16,18 +17,19 @@ class GasApiClient {
 
       if (response.statusCode == 200) {
         final decoded = jsonDecode(response.body) as Map<String, dynamic>;
-        
+
         // Log errors from API
         if (decoded['success'] == false) {
           _logApiError(action, decoded);
         }
-        
+
         return decoded;
       } else {
         final error = {
           'success': false,
           'message': 'HTTP Error: ${response.statusCode}',
-          'errorDetail': 'Status: ${response.statusCode}, Body: ${response.body}'
+          'errorDetail':
+              'Status: ${response.statusCode}, Body: ${response.body}'
         };
         _logApiError(action, error);
         return error;
@@ -48,7 +50,7 @@ class GasApiClient {
     final errorId = response['errorId'] ?? 'N/A';
     final message = response['message'] ?? 'Unknown error';
     final detail = response['errorDetail'] ?? '';
-    
+
     print('🔴 [API Error] Action: $action');
     print('   Error ID: $errorId');
     print('   Message: $message');
@@ -58,7 +60,8 @@ class GasApiClient {
   }
 
   /// POST request helper (kept for compatibility)
-  Future<Map<String, dynamic>> post(String action, Map<String, dynamic> data) async {
+  Future<Map<String, dynamic>> post(
+      String action, Map<String, dynamic> data) async {
     final uri = Uri.parse(baseUrl);
 
     try {
@@ -72,7 +75,10 @@ class GasApiClient {
       if (response.statusCode == 200) {
         return jsonDecode(response.body) as Map<String, dynamic>;
       } else {
-        return {'success': false, 'message': 'HTTP Error: ${response.statusCode}'};
+        return {
+          'success': false,
+          'message': 'HTTP Error: ${response.statusCode}'
+        };
       }
     } catch (e) {
       return {'success': false, 'message': e.toString()};
@@ -91,13 +97,20 @@ class GasApiClient {
     return get('getData', params: params);
   }
 
-  Future<Map<String, dynamic>> saveReport(Map<String, dynamic> reportData) async {
+  Future<Map<String, dynamic>> saveReport(
+      Map<String, dynamic> reportData) async {
     final dataJson = jsonEncode(reportData);
     return get('saveReport', params: {'data': dataJson});
   }
 
   Future<Map<String, dynamic>> deleteData(String id) async {
     return get('deleteData', params: {'id': id});
+  }
+
+  Future<Map<String, dynamic>> updateReport(
+      Map<String, dynamic> reportData) async {
+    final dataJson = jsonEncode(reportData);
+    return get('updateReport', params: {'data': dataJson});
   }
 
   Future<Map<String, dynamic>> generatePdf({String? month}) async {
