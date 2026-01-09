@@ -7,13 +7,15 @@ import 'package:cleaning_report_app/core/api/gas_api_client.dart';
 
 class MockGasApiClient extends GasApiClient {
   @override
-  Future<Map<String, dynamic>> saveReport(Map<String, dynamic> reportData) async {
+  Future<Map<String, dynamic>> saveReport(
+      Map<String, dynamic> reportData) async {
     return {'success': true};
   }
 }
 
 void main() {
-  testWidgets('中間の業務を削除した際、残った業務の入力内容が正しく維持されることを検証', (WidgetTester tester) async {
+  testWidgets('中間の業務を削除した際、残った業務の入力内容が正しく維持されることを検証',
+      (WidgetTester tester) async {
     // モックの設定
     final mockApi = MockGasApiClient();
 
@@ -29,10 +31,11 @@ void main() {
     );
 
     // 初期状態では1つの業務があるはず
-    expect(find.text('業務内容'), findsOneWidget);
+    expect(find.text('業務タイプ'), findsOneWidget);
 
     // 「通常清掃」を「追加業務」に変更（備考入力欄を出すため）
-    await tester.tap(find.byType(DropdownButtonFormField<String>).first);
+    // DropdownButton<String>を使うようになったのでそれを探す
+    await tester.tap(find.byType(DropdownButton<String>).first);
     await tester.pumpAndSettle();
     await tester.tap(find.text('追加業務 (時給1,800円)').last);
     await tester.pumpAndSettle();
@@ -67,7 +70,7 @@ void main() {
     // 2番目の業務を削除（中間の削除）
     final closeButtons = find.byIcon(Icons.close);
     expect(closeButtons, findsNWidgets(3));
-    
+
     // 2番目の削除ボタンまでスクロールしてタップ
     await tester.ensureVisible(closeButtons.at(1));
     await tester.tap(closeButtons.at(1));
