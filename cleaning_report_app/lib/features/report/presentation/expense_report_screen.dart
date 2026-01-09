@@ -272,7 +272,7 @@ class ExpenseReportForm extends HookConsumerWidget {
                 TextFormField(
                   controller: noteController,
                   decoration: const InputDecoration(
-                    hintText: 'メモがあれば入力',
+                    hintText: 'メモすることがあれば入力',
                   ),
                   maxLines: 3,
                   maxLength: 200,

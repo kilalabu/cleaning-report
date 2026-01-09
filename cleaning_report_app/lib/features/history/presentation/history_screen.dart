@@ -369,7 +369,14 @@ class _HistoryItemTile extends StatelessWidget {
               children: [
                 Text(
                   item['item'] ?? '',
-                  style: const TextStyle(fontWeight: FontWeight.w600),
+                  style: TextStyle(
+                    fontWeight: FontWeight.w600,
+                    color: item['item'] == '追加業務'
+                        ? AppTheme.accent
+                        : item['item'] == '緊急対応'
+                            ? AppTheme.destructive
+                            : null,
+                  ),
                 ),
                 Text(
                   '${item['date'] ?? ''}${item['note'] != null && item['note'].isNotEmpty ? ' ・ ${item['note']}' : ''}',
