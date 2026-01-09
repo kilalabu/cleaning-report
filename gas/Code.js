@@ -66,6 +66,12 @@ function doGet(e) {
         result = apiSaveReport(reportData);
         break;
 
+      case 'updateReport':
+        const updateParam = e.parameter.data || '{}';
+        const updateData = JSON.parse(updateParam);
+        result = apiUpdateData(updateData);
+        break;
+
       case 'deleteData':
         const deleteId = e.parameter.id || '';
         result = apiDeleteData(deleteId);
@@ -307,6 +313,46 @@ function apiDeleteData(id) {
       return { success: true };
     }
   }
+  return { success: false, message: 'ID not found' };
+}
+
+/**
+ * API: Update data
+ */
+function apiUpdateData(data) {
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const sheet = ss.getSheetByName('ReportData');
+  const values = sheet.getDataRange().getValues();
+
+  const id = data.id;
+  if (!id) return { success: false, message: 'ID is required' };
+
+  for (let i = 1; i < values.length; i++) {
+    if (values[i][0] === id) {
+      // Update fields
+      // Columns: ID(0), Date(1), Type(2), Item(3), UnitPrice(4), Duration(5), Amount(6), Note(7), CreatedAt(8), Month(9)
+
+      const dateObj = new Date(data.date);
+      const monthStr = Utilities.formatDate(dateObj, Session.getScriptTimeZone(), 'yyyy-MM');
+
+      // Update cells (row is i+1)
+      const rowNum = i + 1;
+
+      // We update everything except ID and CreatedAt(8)
+      sheet.getRange(rowNum, 2).setValue(data.date);     // Date
+      sheet.getRange(rowNum, 3).setValue(data.type);     // Type
+      sheet.getRange(rowNum, 4).setValue(data.item);     // Item
+      sheet.getRange(rowNum, 5).setValue(data.unitPrice);// UnitPrice
+      sheet.getRange(rowNum, 6).setValue(data.duration); // Duration
+      sheet.getRange(rowNum, 7).setValue(data.amount);   // Amount
+      sheet.getRange(rowNum, 8).setValue(data.note);     // Note
+      sheet.getRange(rowNum, 10).setValue(monthStr);     // Month
+
+      log(LOG_LEVEL.INFO, 'updateReport', 'Report updated', { id: id });
+      return { success: true, message: 'Updated successfully' };
+    }
+  }
+
   return { success: false, message: 'ID not found' };
 }
 
