@@ -220,8 +220,8 @@ class CleaningReportForm extends HookConsumerWidget {
           );
         }),
 
-        // 業務追加ボタン（作成モードのみ）
-        if (!isEditing) ...[
+        // 業務追加ボタン（作成モードのみ、最大2つまで）
+        if (!isEditing && items.value.length < 2) ...[
           InkWell(
             onTap: () {
               final newItem = CleaningItem(id: idCounter.value, type: 'extra');
