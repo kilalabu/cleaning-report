@@ -250,7 +250,8 @@ class HistoryScreen extends HookConsumerWidget {
       final dataUrl = result['data'] as String;
       final filename = result['filename'] as String;
 
-      final anchor = html.AnchorElement(href: dataUrl)
+      // ダウンロード開始
+      html.AnchorElement(href: dataUrl)
         ..setAttribute('download', filename)
         ..click();
 
