@@ -380,7 +380,37 @@ function apiGeneratePDF(monthStr) {
 
   const data = reportSheet.getDataRange().getValues();
   data.shift(); // ヘッダー削除
-  const filteredData = data.filter(row => row[9] === monthStr);
+
+  // 月の値を yyyy-MM 形式に正規化するヘルパー関数
+  function normalizeMonth(val) {
+    if (!val) return '';
+
+    // Dateオブジェクトの場合はスクリプトのタイムゾーンでフォーマット
+    if (val instanceof Date) {
+      return Utilities.formatDate(val, Session.getScriptTimeZone(), 'yyyy-MM');
+    }
+
+    const strVal = String(val).trim();
+
+    // 既に yyyy-MM パターンに一致する場合は、タイムゾーンの問題を避けるためにそのまま返す
+    if (/^\d{4}-\d{2}$/.test(strVal)) {
+      return strVal;
+    }
+
+    // 必要に応じて他のフォーマットのパースを試みる
+    if (strVal.includes('T') || strVal.includes('-') || strVal.includes('/')) {
+      const d = new Date(strVal);
+      if (!isNaN(d.getTime())) {
+        return Utilities.formatDate(d, Session.getScriptTimeZone(), 'yyyy-MM');
+      }
+    }
+
+    return strVal;
+  }
+
+  log(LOG_LEVEL.INFO, 'generatePDF', 'Filtering data', { targetMonth: monthStr, totalRows: data.length });
+
+  const filteredData = data.filter(row => normalizeMonth(row[9]) === monthStr);
 
   if (filteredData.length === 0) {
     return { success: false, message: '対象月のデータがありません' };

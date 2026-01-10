@@ -4,7 +4,7 @@ import 'package:http/http.dart' as http;
 /// API Client for Google Apps Script backend
 class GasApiClient {
   static const String baseUrl =
-      'https://script.google.com/macros/s/AKfycbwj8_EA7OKWZt--M0rJCg0Repe-mPnfFdtXEHElgT89LiLUXAxIg7RpDtEQDk5RdFEDog/exec';
+      'https://script.google.com/macros/s/AKfycbwz-LH7pAteFm31V92lMzzCJxxs1tCqIrH2p8CQzRbAK1LhpjeaTIqm1bos0-F4F8IpLw/exec';
 
   /// GET request helper with structured error handling
   Future<Map<String, dynamic>> get(String action,
