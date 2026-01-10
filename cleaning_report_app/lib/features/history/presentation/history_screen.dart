@@ -212,7 +212,12 @@ class HistoryScreen extends HookConsumerWidget {
 
   List<String> _generateMonthOptions() {
     final now = DateTime.now();
-    return List.generate(6, (i) {
+    final start = DateTime(2025, 12);
+
+    int diff = (now.year - start.year) * 12 + now.month - start.month + 1;
+    if (diff < 1) diff = 1;
+
+    return List.generate(diff, (i) {
       final d = DateTime(now.year, now.month - i);
       return '${d.year}-${d.month.toString().padLeft(2, '0')}';
     });
