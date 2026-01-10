@@ -164,21 +164,23 @@ class HistoryScreen extends HookConsumerWidget {
                       );
                     }
                     return Column(
-                      children: items
-                          .map((item) => Padding(
-                                padding: const EdgeInsets.only(bottom: 8),
-                                child: _HistoryItemTile(
-                                  item: item,
-                                  onDelete: () => _deleteItem(
-                                      context,
-                                      ref,
-                                      item['id'] as String,
-                                      selectedMonth.value),
-                                  onEdit: () => _editItem(
-                                      context, ref, item, selectedMonth.value),
-                                ),
-                              ))
-                          .toList(),
+                      children: items.map((item) {
+                        final canEdit = _isEditable(item['date'] as String?);
+                        return Padding(
+                          padding: const EdgeInsets.only(bottom: 8),
+                          child: _HistoryItemTile(
+                            item: item,
+                            onDelete: canEdit
+                                ? () => _deleteItem(context, ref,
+                                    item['id'] as String, selectedMonth.value)
+                                : null,
+                            onEdit: canEdit
+                                ? () => _editItem(
+                                    context, ref, item, selectedMonth.value)
+                                : null,
+                          ),
+                        );
+                      }).toList(),
                     );
                   },
                   loading: () => const Center(
@@ -208,6 +210,20 @@ class HistoryScreen extends HookConsumerWidget {
   String _getCurrentMonth() {
     final now = DateTime.now();
     return '${now.year}-${now.month.toString().padLeft(2, '0')}';
+  }
+
+  bool _isEditable(String? dateStr) {
+    if (dateStr == null) return false;
+    try {
+      final date = DateTime.parse(dateStr.replaceAll('/', '-'));
+      final now = DateTime.now();
+      // 許可される最も古い月の1日（先月の1日）
+      final cutoff = DateTime(now.year, now.month - 1, 1);
+
+      return !date.isBefore(cutoff);
+    } catch (e) {
+      return false;
+    }
   }
 
   List<String> _generateMonthOptions() {
@@ -416,8 +432,8 @@ class HistoryScreen extends HookConsumerWidget {
 
 class _HistoryItemTile extends StatelessWidget {
   final Map<String, dynamic> item;
-  final VoidCallback onDelete;
-  final VoidCallback onEdit;
+  final VoidCallback? onDelete;
+  final VoidCallback? onEdit;
 
   const _HistoryItemTile({
     required this.item,
@@ -487,22 +503,25 @@ class _HistoryItemTile extends StatelessWidget {
           ),
 
           // 編集ボタン
-          IconButton(
-            icon: Icon(Icons.edit_outlined,
-                size: 20, color: AppTheme.mutedForeground),
-            onPressed: onEdit,
-            tooltip: '編集',
-            splashRadius: 20,
-          ),
+          // 編集ボタン
+          if (onEdit != null)
+            IconButton(
+              icon: Icon(Icons.edit_outlined,
+                  size: 20, color: AppTheme.mutedForeground),
+              onPressed: onEdit,
+              tooltip: '編集',
+              splashRadius: 20,
+            ),
 
           // 削除ボタン
-          IconButton(
-            icon: Icon(Icons.delete_outline,
-                size: 20, color: AppTheme.destructive.withOpacity(0.7)),
-            onPressed: onDelete,
-            tooltip: '削除',
-            splashRadius: 20,
-          ),
+          if (onDelete != null)
+            IconButton(
+              icon: Icon(Icons.delete_outline,
+                  size: 20, color: AppTheme.destructive.withOpacity(0.7)),
+              onPressed: onDelete,
+              tooltip: '削除',
+              splashRadius: 20,
+            ),
         ],
       ),
     );
