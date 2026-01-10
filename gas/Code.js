@@ -170,8 +170,6 @@ function initialSetup() {
     settingsSheet = ss.insertSheet('Settings');
     settingsSheet.appendRow(['Key', 'Value']);
     settingsSheet.appendRow(['PIN_CODE', '1234']);
-    settingsSheet.appendRow(['REPORTER_NAME', '田中 太郎']);
-    settingsSheet.appendRow(['CLIENT_NAME', '桑原 宏和']);
     settingsSheet.setFrozenRows(1);
   }
 
@@ -179,22 +177,6 @@ function initialSetup() {
   let templateSheet = ss.getSheetByName('InvoiceTemplate');
   if (!templateSheet) {
     templateSheet = ss.insertSheet('InvoiceTemplate');
-    templateSheet.getRange('A1').setValue('請求書');
-    templateSheet.getRange('A1').setFontSize(24).setFontWeight('bold');
-    templateSheet.getRange('A3').setValue('宛名: {{CLIENT_NAME}} 様');
-    templateSheet.getRange('A4').setValue('案件: {{MONTH}}分 清掃業務委託費');
-
-    templateSheet.getRange('E1').setValue('請求日: {{DATE}}');
-    templateSheet.getRange('E2').setValue('請求者: {{REPORTER_NAME}}');
-
-    templateSheet.getRange('A6:E6').setValues([['日付', '内容', '単価', '数量/時間', '金額']]);
-    templateSheet.getRange('A6:E6').setBackground('#eee').setFontWeight('bold');
-
-    templateSheet.getRange('D20').setValue('合計請求金額');
-    templateSheet.getRange('E20').setValue('{{TOTAL_AMOUNT}}');
-    templateSheet.getRange('E20').setFontWeight('bold');
-
-    templateSheet.getRange('A22').setValue('備考: 追加時給は15分単位で計上しています。');
   }
 }
 
@@ -386,7 +368,9 @@ function apiGeneratePDF(monthStr) {
   const ss = SpreadsheetApp.getActiveSpreadsheet();
   const reportSheet = ss.getSheetByName('ReportData');
   const templateSheet = ss.getSheetByName('InvoiceTemplate');
-  const settingsSheet = ss.getSheetByName('Settings');
+
+  // Settingsシートは必要に応じて使用（新しいセル指定には明確に含まれていませんが、他のプレースホルダで必要になる可能性があるため維持）
+  // ただし、今回はユーザーの具体的なセル指定に従います。
 
   if (!monthStr) {
     const d = new Date();
@@ -394,68 +378,79 @@ function apiGeneratePDF(monthStr) {
     monthStr = Utilities.formatDate(d, Session.getScriptTimeZone(), 'yyyy-MM');
   }
 
-  const settings = {};
-  settingsSheet.getDataRange().getValues().forEach(row => {
-    if (row[0]) settings[row[0]] = row[1];
-  });
-
   const data = reportSheet.getDataRange().getValues();
-  data.shift();
+  data.shift(); // ヘッダー削除
   const filteredData = data.filter(row => row[9] === monthStr);
 
   if (filteredData.length === 0) {
     return { success: false, message: '対象月のデータがありません' };
   }
 
+  // 一時シートの作成
   const tempSheet = templateSheet.copyTo(ss);
   tempSheet.setName('TempInvoice_' + new Date().getTime());
 
   try {
-    const totalAmount = filteredData.reduce((sum, row) => sum + Number(row[6]), 0);
+    // --- 集計ロジック ---
+    let regularCount = 0;
+    let extraMinutes = 0;
+    let emergencyMinutes = 0;
+    let expenseCount = 0;
+    let expenseTotal = 0;
 
-    tempSheet.replaceText('{{CLIENT_NAME}}', settings['CLIENT_NAME'] || '');
-    tempSheet.replaceText('{{REPORTER_NAME}}', settings['REPORTER_NAME'] || '');
-    tempSheet.replaceText('{{MONTH}}', monthStr.replace('-', '年') + '月');
-    tempSheet.replaceText('{{DATE}}', Utilities.formatDate(new Date(), Session.getScriptTimeZone(), 'yyyy/MM/dd'));
-    tempSheet.replaceText('{{TOTAL_AMOUNT}}', '¥' + totalAmount.toLocaleString());
+    for (const row of filteredData) {
+      const type = row[2];      // タイプ: 'work', 'expense'
+      const item = row[3];      // 項目名: '通常清掃', '追加業務', '緊急対応', etc.
+      // row[5] は時間 (分)
+      const duration = Number(row[5]) || 0;
+      // row[6] は金額
+      const amount = Number(row[6]) || 0;
 
-    const startRow = 7;
-    if (filteredData.length > 0) {
-      tempSheet.insertRows(startRow, filteredData.length);
-      const rowsToInsert = filteredData.map(row => {
-        let durationStr = '';
-        if (row[2] !== 'work' || row[3] === '通常清掃') {
-          durationStr = row[2] === 'expense' ? '1' : '1回';
-        } else {
-          const min = Number(row[5]);
-          durationStr = Math.floor(min / 60) + '時間' + (min % 60) + '分';
+      if (type === 'work') {
+        if (item === '通常清掃') {
+          regularCount++;
+        } else if (item === '追加業務') {
+          extraMinutes += duration;
+        } else if (item === '緊急対応') {
+          emergencyMinutes += duration;
         }
-
-        let dateStr = '';
-        try {
-          if (row[1] instanceof Date) {
-            dateStr = Utilities.formatDate(row[1], Session.getScriptTimeZone(), 'yyyy-MM-dd');
-          } else {
-            dateStr = String(row[1]);
-          }
-        } catch (e) {
-          dateStr = String(row[1]);
-        }
-
-        return [
-          dateStr,
-          row[3] + (row[7] ? ` (${row[7]})` : ''),
-          '¥' + Number(row[4]).toLocaleString(),
-          durationStr,
-          '¥' + Number(row[6]).toLocaleString()
-        ];
-      });
-
-      tempSheet.getRange(startRow, 1, filteredData.length, 5).setValues(rowsToInsert);
+      } else if (type === 'expense') {
+        expenseCount++;
+        expenseTotal += amount;
+      }
     }
+
+    // --- 指定セルへの書き込み ---
+
+    // N4: 請求日 (例: 2026年1月1日)
+    const todayStr = Utilities.formatDate(new Date(), Session.getScriptTimeZone(), 'yyyy年M月d日');
+    tempSheet.getRange('N4').setValue(todayStr);
+
+    // C9: 対象月 (例: 2025年12月分)
+    // monthStr は 'yyyy-MM' なので 'yyyy年M月分' に変換
+    const [y, m] = monthStr.split('-');
+    const formattedMonth = `${y}年${Number(m)}月分`;
+    tempSheet.getRange('C9').setValue(formattedMonth);
+
+    // J20: 通常清掃回数 (例: 8)
+    tempSheet.getRange('J20').setValue(regularCount);
+
+    // J21: 追加業務 総合時間 (分単位)
+    tempSheet.getRange('J21').setValue(extraMinutes);
+
+    // J22: 緊急対応 総合時間 (分単位)
+    tempSheet.getRange('J22').setValue(emergencyMinutes);
+
+    // J23: 立替経費 総合数 (例: 2)
+    tempSheet.getRange('J23').setValue(expenseCount);
+
+    // O23: 立替経費 総合費用 (例: 1000)
+    tempSheet.getRange('O23').setValue(expenseTotal);
+
 
     SpreadsheetApp.flush();
 
+    // PDFエクスポート
     const url = ss.getUrl().replace(/edit$/, '') + 'export?exportFormat=pdf&format=pdf' +
       '&size=A4&portrait=true&fitw=true&gridlines=false&printtitle=false' +
       '&sheetnames=false&rownumbers=false' +
@@ -474,6 +469,7 @@ function apiGeneratePDF(monthStr) {
   } catch (e) {
     return { success: false, message: e.toString() };
   } finally {
+    // クリーンアップ
     ss.deleteSheet(tempSheet);
   }
 }
