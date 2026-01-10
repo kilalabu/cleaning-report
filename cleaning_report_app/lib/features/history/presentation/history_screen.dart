@@ -6,6 +6,7 @@ import 'dart:html' as html;
 
 import '../../../core/theme/app_theme.dart';
 import '../../../core/widgets/confirm_dialog.dart';
+import '../../../core/utils/dialog_utils.dart';
 import '../providers/history_provider.dart';
 import '../../auth/providers/auth_provider.dart';
 
@@ -341,9 +342,7 @@ class HistoryScreen extends HookConsumerWidget {
         ..click();
 
       if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('ダウンロードを開始しました')),
-        );
+        await showSuccessDialog(context, '請求書のダウンロードが\n完了しました');
       }
     } else {
       if (context.mounted) {
