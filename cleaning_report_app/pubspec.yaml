@@ -11,6 +11,8 @@ dependencies:
     sdk: flutter
   flutter_hooks: ^0.20.5
   flutter_riverpod: ^2.6.1
+  flutter_localizations:
+    sdk: flutter
   go_router: ^14.6.2
   google_fonts: ^6.3.0
   hooks_riverpod: ^2.6.1

@@ -112,7 +112,7 @@ class HistoryScreen extends HookConsumerWidget {
                           child: InkWell(
                             onTap: isGeneratingPdf.value
                                 ? null
-                                : () => _generatePdf(context, ref,
+                                : () => _showDownloadDialog(context, ref,
                                     selectedMonth.value, isGeneratingPdf),
                             borderRadius: BorderRadius.circular(12),
                             child: SizedBox(
@@ -223,14 +223,97 @@ class HistoryScreen extends HookConsumerWidget {
   }
 
   String _getMonthLabel(String month) {
-    final currentMonth = _getCurrentMonth();
-    if (month == currentMonth) {
-      return '今月';
-    }
     final parts = month.split('-');
     final year = parts[0];
     final monthNum = int.parse(parts[1]);
     return '$year年${monthNum}月';
+  }
+
+  Future<void> _showDownloadDialog(
+    BuildContext context,
+    WidgetRef ref,
+    String month,
+    ValueNotifier<bool> isGenerating,
+  ) async {
+    final now = DateTime.now();
+    DateTime selectedDate = now;
+
+    await showDialog(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (context, setState) {
+          final dateStr =
+              '${selectedDate.year}年${selectedDate.month}月${selectedDate.day}日';
+          final monthParts = month.split('-');
+          final formattedMonth =
+              '${monthParts[0]}年${int.parse(monthParts[1])}月分';
+
+          return AlertDialog(
+            title: const Text('請求書の発行'),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text('対象: $formattedMonth',
+                    style: const TextStyle(fontWeight: FontWeight.bold)),
+                const SizedBox(height: 16),
+                const Text('請求日を選択してください', style: TextStyle(fontSize: 12)),
+                const SizedBox(height: 8),
+                InkWell(
+                  onTap: () async {
+                    final picked = await showDatePicker(
+                      context: context,
+                      initialDate: selectedDate,
+                      firstDate: DateTime(2020),
+                      lastDate: DateTime(2030),
+                      locale: const Locale('ja'),
+                    );
+                    if (picked != null) {
+                      setState(() {
+                        selectedDate = picked;
+                      });
+                    }
+                  },
+                  borderRadius: BorderRadius.circular(8),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 12, vertical: 10),
+                    decoration: BoxDecoration(
+                      border: Border.all(color: AppTheme.border),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text(dateStr, style: const TextStyle(fontSize: 16)),
+                        const Icon(Icons.calendar_today, size: 18),
+                      ],
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(ctx),
+                child: const Text('キャンセル'),
+              ),
+              ElevatedButton(
+                onPressed: () {
+                  Navigator.pop(ctx);
+                  _generatePdf(context, ref, month, isGenerating, selectedDate);
+                },
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppTheme.primary,
+                  foregroundColor: Colors.white,
+                ),
+                child: const Text('発行する'),
+              ),
+            ],
+          );
+        },
+      ),
+    );
   }
 
   Future<void> _generatePdf(
@@ -238,11 +321,13 @@ class HistoryScreen extends HookConsumerWidget {
     WidgetRef ref,
     String month,
     ValueNotifier<bool> isGenerating,
+    DateTime billingDate,
   ) async {
     isGenerating.value = true;
 
     final api = ref.read(apiClientProvider);
-    final result = await api.generatePdf(month: month);
+    final result =
+        await api.generatePdf(month: month, billingDate: billingDate);
 
     isGenerating.value = false;
 

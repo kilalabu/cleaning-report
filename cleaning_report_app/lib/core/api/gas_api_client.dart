@@ -4,7 +4,7 @@ import 'package:http/http.dart' as http;
 /// API Client for Google Apps Script backend
 class GasApiClient {
   static const String baseUrl =
-      'https://script.google.com/macros/s/AKfycbwz-LH7pAteFm31V92lMzzCJxxs1tCqIrH2p8CQzRbAK1LhpjeaTIqm1bos0-F4F8IpLw/exec';
+      'https://script.google.com/macros/s/AKfycbyQ9AazjlpRyc4zAiHuXLudYN5Fa5Vwnwe96n2NvRat3lrqcVY4sKcoJ5yqtr4OEF0mUA/exec';
 
   /// GET request helper with structured error handling
   Future<Map<String, dynamic>> get(String action,
@@ -113,9 +113,14 @@ class GasApiClient {
     return get('updateReport', params: {'data': dataJson});
   }
 
-  Future<Map<String, dynamic>> generatePdf({String? month}) async {
+  Future<Map<String, dynamic>> generatePdf(
+      {String? month, DateTime? billingDate}) async {
     final params = <String, String>{};
     if (month != null) params['month'] = month;
+    if (billingDate != null) {
+      params['billingDate'] =
+          "${billingDate.year}-${billingDate.month.toString().padLeft(2, '0')}-${billingDate.day.toString().padLeft(2, '0')}";
+    }
     return get('generatePDF', params: params);
   }
 }

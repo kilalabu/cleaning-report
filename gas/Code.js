@@ -57,7 +57,8 @@ function doGet(e) {
 
       case 'generatePDF':
         const pdfMonth = e.parameter.month || null;
-        result = apiGeneratePDF(pdfMonth);
+        const billingDate = e.parameter.billingDate || null;
+        result = apiGeneratePDF(pdfMonth, billingDate);
         break;
 
       case 'saveReport':
@@ -364,7 +365,7 @@ function verifyPin(inputPin) {
 /**
  * API: Generate PDF
  */
-function apiGeneratePDF(monthStr) {
+function apiGeneratePDF(monthStr, billingDate) {
   const ss = SpreadsheetApp.getActiveSpreadsheet();
   const reportSheet = ss.getSheetByName('ReportData');
   const templateSheet = ss.getSheetByName('InvoiceTemplate');
@@ -408,7 +409,7 @@ function apiGeneratePDF(monthStr) {
     return strVal;
   }
 
-  log(LOG_LEVEL.INFO, 'generatePDF', 'Filtering data', { targetMonth: monthStr, totalRows: data.length });
+  log(LOG_LEVEL.INFO, 'generatePDF', 'Filtering data', { targetMonth: monthStr, billingDate: billingDate, totalRows: data.length });
 
   const filteredData = data.filter(row => normalizeMonth(row[9]) === monthStr);
 
@@ -453,7 +454,16 @@ function apiGeneratePDF(monthStr) {
     // --- 指定セルへの書き込み ---
 
     // N4: 請求日 (例: 2026年1月1日)
-    const todayStr = Utilities.formatDate(new Date(), Session.getScriptTimeZone(), 'yyyy年M月d日');
+    let todayStr;
+    if (billingDate) {
+      // billingDateが渡された場合はそれを使用
+      const d = new Date(billingDate);
+      todayStr = Utilities.formatDate(d, Session.getScriptTimeZone(), 'yyyy年M月d日');
+    } else {
+      // 渡されない場合は今日
+      todayStr = Utilities.formatDate(new Date(), Session.getScriptTimeZone(), 'yyyy年M月d日');
+    }
+
     tempSheet.getRange('N4').setValue(todayStr);
 
     // C9: 対象月 (例: 2025年12月分)
