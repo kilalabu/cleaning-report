@@ -1,0 +1,19 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "cleaning_report_app (Chrome)",
+      "type": "dart",
+      "request": "launch",
+      "program": "cleaning_report_app/lib/main.dart",
+      "args": [
+        "-d", "chrome",
+        "--web-port", "8080"
+      ],
+      "toolArgs": [
+        "--dart-define=SUPABASE_URL=YOUR_SUPABASE_URL",
+        "--dart-define=SUPABASE_ANON_KEY=YOUR_SUPABASE_ANON_KEY"
+      ]
+    }
+  ]
+}

@@ -1,0 +1,17 @@
+# ローカル環境設定ファイル
+.env.local
+.env
+*.env
+
+# VSCode（セキュアな設定を含む）
+.vscode/launch.json
+
+# FVM
+.fvm/
+
+# IDE
+.idea/
+*.iml
+
+# Flutter
+cleaning_report_app/build/
