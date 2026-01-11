@@ -7,6 +7,7 @@ import 'dart:html' as html;
 import '../../../core/theme/app_theme.dart';
 import '../../../core/widgets/confirm_dialog.dart';
 import '../../../core/utils/dialog_utils.dart';
+import '../../../domain/entities/report.dart';
 import '../providers/history_provider.dart';
 import '../../auth/providers/auth_provider.dart';
 
@@ -164,19 +165,19 @@ class HistoryScreen extends HookConsumerWidget {
                       );
                     }
                     return Column(
-                      children: items.map((item) {
-                        final canEdit = _isEditable(item['date'] as String?);
+                      children: items.map((report) {
+                        final canEdit = _isEditable(report.date);
                         return Padding(
                           padding: const EdgeInsets.only(bottom: 8),
                           child: _HistoryItemTile(
-                            item: item,
+                            report: report,
                             onDelete: canEdit
-                                ? () => _deleteItem(context, ref,
-                                    item['id'] as String, selectedMonth.value)
+                                ? () => _deleteItem(context, ref, report.id,
+                                    selectedMonth.value)
                                 : null,
                             onEdit: canEdit
                                 ? () => _editItem(
-                                    context, ref, item, selectedMonth.value)
+                                    context, ref, report, selectedMonth.value)
                                 : null,
                           ),
                         );
@@ -212,18 +213,11 @@ class HistoryScreen extends HookConsumerWidget {
     return '${now.year}-${now.month.toString().padLeft(2, '0')}';
   }
 
-  bool _isEditable(String? dateStr) {
-    if (dateStr == null) return false;
-    try {
-      final date = DateTime.parse(dateStr.replaceAll('/', '-'));
-      final now = DateTime.now();
-      // 許可される最も古い月の1日（先月の1日）
-      final cutoff = DateTime(now.year, now.month - 1, 1);
-
-      return !date.isBefore(cutoff);
-    } catch (e) {
-      return false;
-    }
+  bool _isEditable(DateTime date) {
+    final now = DateTime.now();
+    // 許可される最も古い月の1日（先月の1日）
+    final cutoff = DateTime(now.year, now.month - 1, 1);
+    return !date.isBefore(cutoff);
   }
 
   List<String> _generateMonthOptions() {
@@ -347,6 +341,7 @@ class HistoryScreen extends HookConsumerWidget {
   ) async {
     isGenerating.value = true;
 
+    // TODO: Phase 2.5 で Edge Functions 経由に移行
     final api = ref.read(apiClientProvider);
     final result =
         await api.generatePdf(month: month, billingDate: billingDate);
@@ -379,9 +374,7 @@ class HistoryScreen extends HookConsumerWidget {
     final confirmed = await showDeleteConfirmDialog(context: context);
 
     if (confirmed == true) {
-      final api = ref.read(apiClientProvider);
-      await api.deleteData(id);
-      ref.invalidate(historyProvider(month));
+      await ref.read(historyNotifierProvider.notifier).deleteReport(id, month);
 
       if (context.mounted) {
         ScaffoldMessenger.of(context)
@@ -390,9 +383,22 @@ class HistoryScreen extends HookConsumerWidget {
     }
   }
 
-  Future<void> _editItem(BuildContext context, WidgetRef ref,
-      Map<String, dynamic> item, String month) async {
-    final isWork = item['type'] == 'work';
+  Future<void> _editItem(
+      BuildContext context, WidgetRef ref, Report report, String month) async {
+    final isWork = report.type == ReportType.work;
+
+    // Report EntityをMap<String, dynamic>に変換（既存のフォームとの互換性のため）
+    final item = {
+      'id': report.id,
+      'date': report.date.toIso8601String().split('T')[0],
+      'type': report.type.value,
+      'item': report.item,
+      'unit_price': report.unitPrice,
+      'duration': report.duration,
+      'amount': report.amount,
+      'note': report.note,
+      'month': report.month,
+    };
 
     await showModalBottomSheet(
       context: context,
@@ -431,24 +437,27 @@ class HistoryScreen extends HookConsumerWidget {
 }
 
 class _HistoryItemTile extends StatelessWidget {
-  final Map<String, dynamic> item;
+  final Report report;
   final VoidCallback? onDelete;
   final VoidCallback? onEdit;
 
   const _HistoryItemTile({
-    required this.item,
+    required this.report,
     required this.onDelete,
     required this.onEdit,
   });
 
   @override
   Widget build(BuildContext context) {
-    final isWork = item['type'] == 'work';
+    final isWork = report.type == ReportType.work;
     final icon = isWork ? Icons.cleaning_services : Icons.receipt_long;
     final iconColor = isWork ? AppTheme.primary : AppTheme.accent;
     final iconBgColor = isWork
         ? AppTheme.primary.withOpacity(0.15)
         : AppTheme.accent.withOpacity(0.15);
+
+    final dateStr =
+        '${report.date.year}-${report.date.month.toString().padLeft(2, '0')}-${report.date.day.toString().padLeft(2, '0')}';
 
     return Container(
       decoration: AppTheme.cardDecoration,
@@ -473,18 +482,18 @@ class _HistoryItemTile extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  item['item'] ?? '',
+                  report.item,
                   style: TextStyle(
                     fontWeight: FontWeight.w600,
-                    color: item['item'] == '追加業務'
+                    color: report.item == '追加業務'
                         ? AppTheme.accent
-                        : item['item'] == '緊急対応'
+                        : report.item == '緊急対応'
                             ? AppTheme.destructive
                             : null,
                   ),
                 ),
                 Text(
-                  '${item['date'] ?? ''}${item['note'] != null && item['note'].isNotEmpty ? ' ・ ${item['note']}' : ''}',
+                  '$dateStr${report.note != null && report.note!.isNotEmpty ? ' ・ ${report.note}' : ''}',
                   style: TextStyle(
                     color: AppTheme.mutedForeground,
                     fontSize: 12,
@@ -498,11 +507,10 @@ class _HistoryItemTile extends StatelessWidget {
 
           // 金額
           Text(
-            '¥${item['amount'] ?? 0}',
+            '¥${report.amount}',
             style: const TextStyle(fontWeight: FontWeight.bold),
           ),
 
-          // 編集ボタン
           // 編集ボタン
           if (onEdit != null)
             IconButton(

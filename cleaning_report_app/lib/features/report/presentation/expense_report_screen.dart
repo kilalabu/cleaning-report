@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_hooks/flutter_hooks.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../../core/theme/app_theme.dart';
-import '../../auth/providers/auth_provider.dart';
+import '../../../core/di/providers.dart';
+import '../../../domain/entities/report.dart';
 import '../../history/providers/history_provider.dart';
 import '../../../core/utils/dialog_utils.dart';
 
@@ -57,23 +59,31 @@ class ExpenseReportForm extends HookConsumerWidget {
       if (!formKey.currentState!.validate()) return;
 
       isSubmitting.value = true;
-      final api = ref.read(apiClientProvider);
+      final repository = ref.read(reportRepositoryProvider);
+      final userId = Supabase.instance.client.auth.currentUser?.id ?? '';
 
       try {
-        final data = {
-          'date': dateController.value,
-          'type': 'expense',
-          'item': itemController.text,
-          'unitPrice': 0,
-          'duration': 0,
-          'amount': int.parse(amountController.text),
-          'note': noteController.text,
-        };
+        final date = DateTime.parse(dateController.value);
+        final month = '${date.year}-${date.month.toString().padLeft(2, '0')}';
+
+        final report = Report(
+          id: initialItem?['id'] ?? '',
+          userId: userId,
+          date: date,
+          type: ReportType.expense,
+          item: itemController.text,
+          unitPrice: null,
+          duration: null,
+          amount: int.parse(amountController.text),
+          note: noteController.text.isNotEmpty ? noteController.text : null,
+          month: month,
+          createdAt: DateTime.now(),
+        );
 
         if (initialItem != null) {
-          await api.updateReport({'id': initialItem!['id'], ...data});
+          await repository.updateReport(report);
         } else {
-          await api.saveReport(data);
+          await repository.createReport(report);
         }
 
         isSubmitting.value = false;

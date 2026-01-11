@@ -1,41 +1,44 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../auth/providers/auth_provider.dart';
+import '../../../core/di/providers.dart';
+import '../../../domain/entities/report.dart';
 
-// History provider that accepts month as parameter
+/// 履歴データを取得するProvider（月指定）
+///
+/// RLSにより:
+/// - staff: 自分のレポートのみ取得
+/// - admin: 全レポートを取得
 final historyProvider =
-    FutureProvider.family<List<Map<String, dynamic>>, String>(
-        (ref, month) async {
-  final api = ref.read(apiClientProvider);
-
-  final result = await api.getData(month: month);
-
-  if (result['success'] == true) {
-    final data = result['data'] as List<dynamic>?;
-    final list = data?.map((e) => e as Map<String, dynamic>).toList() ?? [];
-
-    // Sort by Date Descending (Client-side)
-    list.sort((a, b) {
-      final dateA = DateTime.tryParse(a['date'] ?? '') ?? DateTime(0);
-      final dateB = DateTime.tryParse(b['date'] ?? '') ?? DateTime(0);
-      // Descending
-      return dateB.compareTo(dateA);
-    });
-
-    return list;
-  }
-
-  throw Exception(result['message'] ?? 'Failed to load history');
+    FutureProvider.family<List<Report>, String>((ref, month) async {
+  final repository = ref.read(reportRepositoryProvider);
+  return repository.getReports(month: month);
 });
 
-// Total amount for specified month
+/// 指定月の合計金額
 final totalAmountProvider = Provider.family<int, String>((ref, month) {
   final historyAsync = ref.watch(historyProvider(month));
 
   return historyAsync.when(
-    data: (items) => items.fold(
-        0, (sum, item) => sum + ((item['amount'] as num?)?.toInt() ?? 0)),
+    data: (items) => items.fold(0, (sum, item) => sum + item.amount),
     loading: () => 0,
     error: (_, __) => 0,
   );
 });
+
+/// レポート削除用のNotifier
+class HistoryNotifier extends AutoDisposeAsyncNotifier<void> {
+  @override
+  Future<void> build() async {}
+
+  /// レポートを削除し、キャッシュを無効化
+  Future<void> deleteReport(String id, String month) async {
+    final repository = ref.read(reportRepositoryProvider);
+    await repository.deleteReport(id);
+    ref.invalidate(historyProvider(month));
+  }
+}
+
+final historyNotifierProvider =
+    AutoDisposeAsyncNotifierProvider<HistoryNotifier, void>(
+  () => HistoryNotifier(),
+);

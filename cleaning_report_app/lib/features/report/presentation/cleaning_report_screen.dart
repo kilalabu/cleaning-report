@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_hooks/flutter_hooks.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../../core/theme/app_theme.dart';
-import '../../auth/providers/auth_provider.dart';
+import '../../../core/di/providers.dart';
+import '../../../domain/entities/report.dart';
 import '../../history/providers/history_provider.dart';
 import '../../../core/utils/dialog_utils.dart';
 import '../domain/cleaning_item.dart';
@@ -81,21 +83,33 @@ class CleaningReportForm extends HookConsumerWidget {
       }
 
       isSubmitting.value = true;
-      final api = ref.read(apiClientProvider);
+      final repository = ref.read(reportRepositoryProvider);
+      final userId = Supabase.instance.client.auth.currentUser?.id ?? '';
 
       try {
         for (final item in items.value) {
           final calculatedData = ReportCalculator.calculateWorkItem(item);
+          final date = DateTime.parse(dateController.value);
+          final month = '${date.year}-${date.month.toString().padLeft(2, '0')}';
 
-          final data = {
-            'date': dateController.value,
-            ...calculatedData,
-          };
+          final report = Report(
+            id: initialItem?['id'] ?? '',
+            userId: userId,
+            date: date,
+            type: ReportType.work,
+            item: calculatedData['item'] as String,
+            unitPrice: calculatedData['unitPrice'] as int?,
+            duration: calculatedData['duration'] as int?,
+            amount: calculatedData['amount'] as int,
+            note: calculatedData['note'] as String?,
+            month: month,
+            createdAt: DateTime.now(),
+          );
 
           if (initialItem != null) {
-            await api.updateReport({'id': initialItem!['id'], ...data});
+            await repository.updateReport(report);
           } else {
-            await api.saveReport(data);
+            await repository.createReport(report);
           }
         }
 
