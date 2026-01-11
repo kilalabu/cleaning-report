@@ -2,14 +2,21 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:go_router/go_router.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 import 'core/theme/app_theme.dart';
-import 'features/auth/presentation/pin_screen.dart';
+import 'core/config/supabase_config.dart';
+import 'features/auth/presentation/login_screen.dart';
 import 'features/report/presentation/cleaning_report_screen.dart';
 import 'features/report/presentation/expense_report_screen.dart';
 import 'features/history/presentation/history_screen.dart';
 
-void main() {
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+
+  // Supabase初期化
+  await SupabaseConfig.initialize();
+
   runApp(const ProviderScope(child: CleaningReportApp()));
 }
 
@@ -37,10 +44,27 @@ class CleaningReportApp extends StatelessWidget {
 
 final _router = GoRouter(
   initialLocation: '/login',
+  redirect: (context, state) {
+    final session = Supabase.instance.client.auth.currentSession;
+    final isLoggedIn = session != null;
+    final isLoginRoute = state.matchedLocation == '/login';
+
+    // 未認証でログイン以外のページにアクセス → ログインへリダイレクト
+    if (!isLoggedIn && !isLoginRoute) {
+      return '/login';
+    }
+
+    // 認証済みでログインページにアクセス → メイン画面へリダイレクト
+    if (isLoggedIn && isLoginRoute) {
+      return '/report/cleaning';
+    }
+
+    return null;
+  },
   routes: [
     GoRoute(
       path: '/login',
-      builder: (context, state) => const PinScreen(),
+      builder: (context, state) => const LoginScreen(),
     ),
     StatefulShellRoute.indexedStack(
       builder: (context, state, navigationShell) {
