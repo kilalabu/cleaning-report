@@ -1,22 +1,47 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_hooks/flutter_hooks.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../core/theme/app_theme.dart';
-import '../../../core/di/providers.dart';
+import '../view_model/login_view_model.dart';
 
 /// Email/Password ログイン画面
-class LoginScreen extends HookConsumerWidget {
+class LoginScreen extends ConsumerStatefulWidget {
   const LoginScreen({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final emailController = useTextEditingController();
-    final passwordController = useTextEditingController();
-    final isLoading = useState(false);
-    final errorMessage = useState<String?>(null);
-    final obscurePassword = useState(true);
+  ConsumerState<LoginScreen> createState() => _LoginScreenState();
+}
+
+class _LoginScreenState extends ConsumerState<LoginScreen> {
+  final _emailController = TextEditingController();
+  final _passwordController = TextEditingController();
+  bool _obscurePassword = true;
+
+  @override
+  void dispose() {
+    _emailController.dispose();
+    _passwordController.dispose();
+    super.dispose();
+  }
+
+  void _onLogin() {
+    ref.read(loginViewModelProvider.notifier).login(
+          email: _emailController.text,
+          password: _passwordController.text,
+          onSuccess: () {
+            if (mounted) {
+              context.go('/report/cleaning');
+            }
+          },
+        );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final state = ref.watch(loginViewModelProvider);
+    final isLoading = state.isLoading;
+    final errorMessage = state.errorMessage;
 
     return Scaffold(
       body: Container(
@@ -86,7 +111,7 @@ class LoginScreen extends HookConsumerWidget {
                       children: [
                         // メールアドレス
                         TextField(
-                          controller: emailController,
+                          controller: _emailController,
                           keyboardType: TextInputType.emailAddress,
                           autocorrect: false,
                           decoration: InputDecoration(
@@ -101,38 +126,33 @@ class LoginScreen extends HookConsumerWidget {
 
                         // パスワード
                         TextField(
-                          controller: passwordController,
-                          obscureText: obscurePassword.value,
+                          controller: _passwordController,
+                          obscureText: _obscurePassword,
                           decoration: InputDecoration(
                             labelText: 'パスワード',
                             prefixIcon: const Icon(Icons.lock_outlined),
                             suffixIcon: IconButton(
                               icon: Icon(
-                                obscurePassword.value
+                                _obscurePassword
                                     ? Icons.visibility_outlined
                                     : Icons.visibility_off_outlined,
                               ),
                               onPressed: () {
-                                obscurePassword.value = !obscurePassword.value;
+                                setState(() {
+                                  _obscurePassword = !_obscurePassword;
+                                });
                               },
                             ),
                             border: OutlineInputBorder(
                               borderRadius: BorderRadius.circular(12),
                             ),
                           ),
-                          onSubmitted: (_) => _login(
-                            context,
-                            ref,
-                            emailController.text,
-                            passwordController.text,
-                            isLoading,
-                            errorMessage,
-                          ),
+                          onSubmitted: (_) => _onLogin(),
                         ),
                         const SizedBox(height: 24),
 
                         // エラーメッセージ
-                        if (errorMessage.value != null)
+                        if (errorMessage != null)
                           Container(
                             padding: const EdgeInsets.all(12),
                             margin: const EdgeInsets.only(bottom: 16),
@@ -148,7 +168,7 @@ class LoginScreen extends HookConsumerWidget {
                                 const SizedBox(width: 8),
                                 Expanded(
                                   child: Text(
-                                    errorMessage.value!,
+                                    errorMessage,
                                     style: TextStyle(color: Colors.red[700]),
                                   ),
                                 ),
@@ -158,16 +178,7 @@ class LoginScreen extends HookConsumerWidget {
 
                         // ログインボタン
                         ElevatedButton(
-                          onPressed: isLoading.value
-                              ? null
-                              : () => _login(
-                                    context,
-                                    ref,
-                                    emailController.text,
-                                    passwordController.text,
-                                    isLoading,
-                                    errorMessage,
-                                  ),
+                          onPressed: isLoading ? null : _onLogin,
                           style: ElevatedButton.styleFrom(
                             backgroundColor: AppTheme.primary,
                             foregroundColor: Colors.white,
@@ -176,7 +187,7 @@ class LoginScreen extends HookConsumerWidget {
                               borderRadius: BorderRadius.circular(12),
                             ),
                           ),
-                          child: isLoading.value
+                          child: isLoading
                               ? const SizedBox(
                                   width: 24,
                                   height: 24,
@@ -204,36 +215,5 @@ class LoginScreen extends HookConsumerWidget {
         ),
       ),
     );
-  }
-
-  Future<void> _login(
-    BuildContext context,
-    WidgetRef ref,
-    String email,
-    String password,
-    ValueNotifier<bool> isLoading,
-    ValueNotifier<String?> errorMessage,
-  ) async {
-    // バリデーション
-    if (email.isEmpty || password.isEmpty) {
-      errorMessage.value = 'メールアドレスとパスワードを入力してください';
-      return;
-    }
-
-    errorMessage.value = null;
-    isLoading.value = true;
-
-    try {
-      final authRepository = ref.read(authRepositoryProvider);
-      await authRepository.signIn(email: email, password: password);
-
-      if (context.mounted) {
-        context.go('/report/cleaning');
-      }
-    } catch (e) {
-      errorMessage.value = 'ログインに失敗しました。メールアドレスとパスワードを確認してください。';
-    } finally {
-      isLoading.value = false;
-    }
   }
 }

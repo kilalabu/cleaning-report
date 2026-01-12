@@ -1,15 +1,9 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_hooks/flutter_hooks.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../../core/theme/app_theme.dart';
-import '../../../core/di/providers.dart';
-import '../../../domain/entities/report.dart';
-import '../../history/providers/history_provider.dart';
-import '../../../core/utils/dialog_utils.dart';
 import '../domain/cleaning_item.dart';
-import '../domain/report_calculator.dart';
+import '../view_model/cleaning_report_view_model.dart';
 
 class CleaningReportScreen extends StatelessWidget {
   const CleaningReportScreen({super.key});
@@ -35,118 +29,32 @@ class CleaningReportScreen extends StatelessWidget {
   }
 }
 
-class CleaningReportForm extends HookConsumerWidget {
+class CleaningReportForm extends ConsumerStatefulWidget {
   final Map<String, dynamic>? initialItem;
   final VoidCallback? onSuccess;
 
   const CleaningReportForm({super.key, this.initialItem, this.onSuccess});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final initialDate = initialItem != null
-        ? initialItem!['date'] as String
-        : DateTime.now().toIso8601String().substring(0, 10);
+  ConsumerState<CleaningReportForm> createState() => _CleaningReportFormState();
+}
 
-    final dateController = useState(initialDate);
-    final idCounter = useState(1);
+class _CleaningReportFormState extends ConsumerState<CleaningReportForm> {
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      ref
+          .read(cleaningReportViewModelProvider.notifier)
+          .initialize(initialItem: widget.initialItem);
+    });
+  }
 
-    final initialList = useState<List<CleaningItem>>([]);
-
-    useEffect(() {
-      if (initialItem != null) {
-        final item = CleaningItem(
-          id: 0,
-          type: _mapItemNameToType(initialItem!['item']),
-          duration: initialItem!['duration'] as int? ?? 15,
-          note: initialItem!['note'] as String?,
-        );
-        initialList.value = [item];
-      } else {
-        initialList.value = [CleaningItem(id: 0)];
-      }
-      return null;
-    }, []);
-
-    final items = useState<List<CleaningItem>>(initialList.value);
-    final isSubmitting = useState(false);
-
-    Future<void> submit() async {
-      for (int i = 0; i < items.value.length; i++) {
-        final item = items.value[i];
-        if (item.type != 'regular' &&
-            (item.note == null || item.note!.isEmpty)) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('${i + 1}番目の業務: 備考を入力してください')),
-          );
-          return;
-        }
-      }
-
-      isSubmitting.value = true;
-      final repository = ref.read(reportRepositoryProvider);
-      final userId = Supabase.instance.client.auth.currentUser?.id ?? '';
-
-      try {
-        for (final item in items.value) {
-          final calculatedData = ReportCalculator.calculateWorkItem(item);
-          final date = DateTime.parse(dateController.value);
-          final month = '${date.year}-${date.month.toString().padLeft(2, '0')}';
-
-          final report = Report(
-            id: initialItem?['id'] ?? '',
-            userId: userId,
-            date: date,
-            type: ReportType.work,
-            item: calculatedData['item'] as String,
-            unitPrice: calculatedData['unitPrice'] as int?,
-            duration: calculatedData['duration'] as int?,
-            amount: calculatedData['amount'] as int,
-            note: calculatedData['note'] as String?,
-            month: month,
-            createdAt: DateTime.now(),
-          );
-
-          if (initialItem != null) {
-            await repository.updateReport(report);
-          } else {
-            await repository.createReport(report);
-          }
-        }
-
-        isSubmitting.value = false;
-
-        final newMonth = dateController.value.substring(0, 7);
-        ref.invalidate(historyProvider(newMonth));
-
-        if (initialItem != null) {
-          final oldDate = initialItem!['date'] as String;
-          final oldMonth = oldDate.substring(0, 7);
-          if (oldMonth != newMonth) {
-            ref.invalidate(historyProvider(oldMonth));
-          }
-        }
-
-        if (context.mounted) {
-          if (initialItem != null) {
-            ScaffoldMessenger.of(context)
-                .showSnackBar(const SnackBar(content: Text('更新しました')));
-            if (onSuccess != null) onSuccess!();
-          } else {
-            await showSuccessDialog(context, '報告を送信しました\nお疲れ様でした');
-            items.value = [CleaningItem(id: idCounter.value)];
-            idCounter.value++;
-          }
-        }
-      } catch (e) {
-        isSubmitting.value = false;
-        if (context.mounted) {
-          ScaffoldMessenger.of(context)
-              .showSnackBar(SnackBar(content: Text('エラー: $e')));
-        }
-      }
-    }
-
-    final isEditing = initialItem != null;
+  @override
+  Widget build(BuildContext context) {
+    final state = ref.watch(cleaningReportViewModelProvider);
+    final viewModel = ref.read(cleaningReportViewModelProvider.notifier);
+    final isEditing = widget.initialItem != null;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -172,16 +80,16 @@ class CleaningReportForm extends HookConsumerWidget {
               InkWell(
                 onTap: () async {
                   final initial =
-                      DateTime.tryParse(dateController.value) ?? DateTime.now();
+                      DateTime.tryParse(state.date) ?? DateTime.now();
                   final picked = await showDatePicker(
                     context: context,
                     initialDate: initial,
                     firstDate: DateTime(2020),
                     lastDate: DateTime.now(),
+                    locale: const Locale('ja'),
                   );
                   if (picked != null) {
-                    dateController.value =
-                        picked.toIso8601String().substring(0, 10);
+                    viewModel.updateDate(picked);
                   }
                 },
                 borderRadius: BorderRadius.circular(12),
@@ -195,7 +103,7 @@ class CleaningReportForm extends HookConsumerWidget {
                           size: 20, color: AppTheme.primary),
                       const SizedBox(width: 12),
                       Text(
-                        dateController.value,
+                        state.date,
                         style: TextStyle(
                           fontSize: 15,
                           fontWeight: FontWeight.w500,
@@ -211,7 +119,7 @@ class CleaningReportForm extends HookConsumerWidget {
         ),
         const SizedBox(height: 12),
         // 業務アイテム
-        ...items.value.asMap().entries.map((entry) {
+        ...state.items.asMap().entries.map((entry) {
           final index = entry.key;
           final item = entry.value;
           return Padding(
@@ -219,29 +127,23 @@ class CleaningReportForm extends HookConsumerWidget {
             child: _CleaningItemCard(
               key: ValueKey(item.id),
               item: item,
-              showRemove: !isEditing && items.value.length > 1,
+              showRemove: !isEditing && state.items.length > 1,
               onChanged: (updated) {
-                final newList = List<CleaningItem>.from(items.value);
-                newList[index] = updated;
-                items.value = newList;
+                viewModel.updateItem(index, updated);
               },
               onRemove: () {
                 if (isEditing) return;
-                final newList = List<CleaningItem>.from(items.value);
-                newList.removeAt(index);
-                items.value = newList;
+                viewModel.removeItem(index);
               },
             ),
           );
         }),
 
         // 業務追加ボタン（作成モードのみ、最大2つまで）
-        if (!isEditing && items.value.length < 2) ...[
+        if (!isEditing && state.items.length < 2) ...[
           InkWell(
             onTap: () {
-              final newItem = CleaningItem(id: idCounter.value, type: 'extra');
-              idCounter.value++;
-              items.value = [...items.value, newItem];
+              viewModel.addItem();
             },
             borderRadius: BorderRadius.circular(14),
             child: Container(
@@ -281,12 +183,18 @@ class CleaningReportForm extends HookConsumerWidget {
           child: Material(
             color: Colors.transparent,
             child: InkWell(
-              onTap: isSubmitting.value ? null : submit,
+              onTap: state.isSubmitting
+                  ? null
+                  : () => viewModel.submit(
+                        context,
+                        initialItem: widget.initialItem,
+                        onSuccess: widget.onSuccess,
+                      ),
               borderRadius: BorderRadius.circular(14),
               child: Container(
                 padding: const EdgeInsets.symmetric(vertical: 18),
                 child: Center(
-                  child: isSubmitting.value
+                  child: state.isSubmitting
                       ? const SizedBox(
                           width: 24,
                           height: 24,
@@ -310,13 +218,6 @@ class CleaningReportForm extends HookConsumerWidget {
         ),
       ],
     );
-  }
-
-  String _mapItemNameToType(String? itemName) {
-    if (itemName == '通常清掃') return 'regular';
-    if (itemName == '追加業務') return 'extra';
-    if (itemName == '緊急対応') return 'emergency';
-    return 'regular';
   }
 }
 
@@ -393,7 +294,9 @@ class _CleaningItemCard extends StatelessWidget {
                     DropdownMenuItem(
                         value: 'emergency', child: Text('緊急対応 (時給2,000円)')),
                   ],
-                  onChanged: (v) => onChanged(item.copyWith(type: v)),
+                  onChanged: (v) {
+                    if (v != null) onChanged(item.copyWith(type: v));
+                  },
                 ),
               ),
             ),
@@ -428,7 +331,9 @@ class _CleaningItemCard extends StatelessWidget {
                           : '$mins分';
                       return DropdownMenuItem(value: min, child: Text(label));
                     }),
-                    onChanged: (v) => onChanged(item.copyWith(duration: v)),
+                    onChanged: (v) {
+                      if (v != null) onChanged(item.copyWith(duration: v));
+                    },
                   ),
                 ),
               ),

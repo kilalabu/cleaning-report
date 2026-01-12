@@ -35,7 +35,7 @@ class ReportCalculator {
       'unitPrice': unitPrice,
       'duration': item.duration,
       'amount': amount,
-      'note': item.note ?? '',
+      'note': item.note,
     };
   }
 }

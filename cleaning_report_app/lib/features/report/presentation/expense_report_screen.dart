@@ -1,13 +1,8 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_hooks/flutter_hooks.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../../core/theme/app_theme.dart';
-import '../../../core/di/providers.dart';
-import '../../../domain/entities/report.dart';
-import '../../history/providers/history_provider.dart';
-import '../../../core/utils/dialog_utils.dart';
+import '../view_model/expense_report_view_model.dart';
 
 class ExpenseReportScreen extends StatelessWidget {
   const ExpenseReportScreen({super.key});
@@ -33,97 +28,86 @@ class ExpenseReportScreen extends StatelessWidget {
   }
 }
 
-class ExpenseReportForm extends HookConsumerWidget {
+class ExpenseReportForm extends ConsumerStatefulWidget {
   final Map<String, dynamic>? initialItem;
   final VoidCallback? onSuccess;
 
   const ExpenseReportForm({super.key, this.initialItem, this.onSuccess});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final initialDate = initialItem != null
-        ? initialItem!['date'] as String
-        : DateTime.now().toIso8601String().substring(0, 10);
+  ConsumerState<ExpenseReportForm> createState() => _ExpenseReportFormState();
+}
 
-    final dateController = useState(initialDate);
-    final itemController = useTextEditingController(
-        text: initialItem != null ? initialItem!['item'] : '');
-    final amountController = useTextEditingController(
-        text: initialItem != null ? initialItem!['amount'].toString() : '');
-    final noteController = useTextEditingController(
-        text: initialItem != null ? initialItem!['note'] : '');
-    final isSubmitting = useState(false);
-    final formKey = useMemoized(() => GlobalKey<FormState>());
+class _ExpenseReportFormState extends ConsumerState<ExpenseReportForm> {
+  late TextEditingController _itemController;
+  late TextEditingController _amountController;
+  late TextEditingController _noteController;
+  final _formKey = GlobalKey<FormState>();
 
-    Future<void> submit() async {
-      if (!formKey.currentState!.validate()) return;
+  @override
+  void initState() {
+    super.initState();
+    _itemController =
+        TextEditingController(text: widget.initialItem?['item'] ?? '');
+    _amountController = TextEditingController(
+        text: widget.initialItem?['amount']?.toString() ?? '');
+    _noteController =
+        TextEditingController(text: widget.initialItem?['note'] ?? '');
 
-      isSubmitting.value = true;
-      final repository = ref.read(reportRepositoryProvider);
-      final userId = Supabase.instance.client.auth.currentUser?.id ?? '';
+    _itemController.addListener(_onItemChanged);
+    _amountController.addListener(_onAmountChanged);
+    _noteController.addListener(_onNoteChanged);
 
-      try {
-        final date = DateTime.parse(dateController.value);
-        final month = '${date.year}-${date.month.toString().padLeft(2, '0')}';
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      ref
+          .read(expenseReportViewModelProvider.notifier)
+          .initialize(initialItem: widget.initialItem);
+    });
+  }
 
-        final report = Report(
-          id: initialItem?['id'] ?? '',
-          userId: userId,
-          date: date,
-          type: ReportType.expense,
-          item: itemController.text,
-          unitPrice: null,
-          duration: null,
-          amount: int.parse(amountController.text),
-          note: noteController.text.isNotEmpty ? noteController.text : null,
-          month: month,
-          createdAt: DateTime.now(),
-        );
+  @override
+  void dispose() {
+    _itemController.removeListener(_onItemChanged);
+    _amountController.removeListener(_onAmountChanged);
+    _noteController.removeListener(_onNoteChanged);
+    _itemController.dispose();
+    _amountController.dispose();
+    _noteController.dispose();
+    super.dispose();
+  }
 
-        if (initialItem != null) {
-          await repository.updateReport(report);
-        } else {
-          await repository.createReport(report);
-        }
+  void _onItemChanged() {
+    ref
+        .read(expenseReportViewModelProvider.notifier)
+        .updateItem(_itemController.text);
+  }
 
-        isSubmitting.value = false;
+  void _onAmountChanged() {
+    ref
+        .read(expenseReportViewModelProvider.notifier)
+        .updateAmount(_amountController.text);
+  }
 
-        final newMonth = dateController.value.substring(0, 7);
-        ref.invalidate(historyProvider(newMonth));
+  void _onNoteChanged() {
+    ref
+        .read(expenseReportViewModelProvider.notifier)
+        .updateNote(_noteController.text);
+  }
 
-        if (initialItem != null) {
-          final oldDate = initialItem!['date'] as String;
-          final oldMonth = oldDate.substring(0, 7);
-          if (oldMonth != newMonth) {
-            ref.invalidate(historyProvider(oldMonth));
-          }
-        }
+  void _resetForm() {
+    _itemController.clear();
+    _amountController.clear();
+    _noteController.clear();
+  }
 
-        if (context.mounted) {
-          if (initialItem != null) {
-            ScaffoldMessenger.of(context)
-                .showSnackBar(const SnackBar(content: Text('更新しました')));
-            if (onSuccess != null) onSuccess!();
-          } else {
-            await showSuccessDialog(context, '報告を送信しました');
-            itemController.clear();
-            amountController.clear();
-            noteController.clear();
-          }
-        }
-      } catch (e) {
-        isSubmitting.value = false;
-        if (context.mounted) {
-          ScaffoldMessenger.of(context)
-              .showSnackBar(SnackBar(content: Text('エラー: $e')));
-        }
-      }
-    }
-
-    final isEditing = initialItem != null;
+  @override
+  Widget build(BuildContext context) {
+    final state = ref.watch(expenseReportViewModelProvider);
+    final viewModel = ref.read(expenseReportViewModelProvider.notifier);
+    final isEditing = widget.initialItem != null;
 
     return Form(
-      key: formKey,
+      key: _formKey,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
@@ -147,17 +131,17 @@ class ExpenseReportForm extends HookConsumerWidget {
                 const SizedBox(height: 8),
                 InkWell(
                   onTap: () async {
-                    final initial = DateTime.tryParse(dateController.value) ??
-                        DateTime.now();
+                    final initial =
+                        DateTime.tryParse(state.date) ?? DateTime.now();
                     final picked = await showDatePicker(
                       context: context,
                       initialDate: initial,
                       firstDate: DateTime(2020),
                       lastDate: DateTime.now(),
+                      locale: const Locale('ja'),
                     );
                     if (picked != null) {
-                      dateController.value =
-                          picked.toIso8601String().substring(0, 10);
+                      viewModel.updateDate(picked);
                     }
                   },
                   borderRadius: BorderRadius.circular(12),
@@ -171,7 +155,7 @@ class ExpenseReportForm extends HookConsumerWidget {
                             size: 20, color: AppTheme.primary),
                         const SizedBox(width: 12),
                         Text(
-                          dateController.value,
+                          state.date,
                           style: TextStyle(
                             fontSize: 15,
                             fontWeight: FontWeight.w500,
@@ -205,7 +189,7 @@ class ExpenseReportForm extends HookConsumerWidget {
                 ),
                 const SizedBox(height: 8),
                 TextFormField(
-                  controller: itemController,
+                  controller: _itemController,
                   decoration: const InputDecoration(
                     hintText: '例: 洗剤、ゴミ袋など',
                   ),
@@ -234,7 +218,7 @@ class ExpenseReportForm extends HookConsumerWidget {
                 ),
                 const SizedBox(height: 8),
                 TextFormField(
-                  controller: amountController,
+                  controller: _amountController,
                   decoration: InputDecoration(
                     hintText: '0',
                     prefixIcon: Padding(
@@ -281,7 +265,7 @@ class ExpenseReportForm extends HookConsumerWidget {
                 ),
                 const SizedBox(height: 8),
                 TextFormField(
-                  controller: noteController,
+                  controller: _noteController,
                   decoration: const InputDecoration(
                     hintText: 'メモすることがあれば入力',
                   ),
@@ -300,12 +284,23 @@ class ExpenseReportForm extends HookConsumerWidget {
             child: Material(
               color: Colors.transparent,
               child: InkWell(
-                onTap: isSubmitting.value ? null : submit,
+                onTap: state.isSubmitting
+                    ? null
+                    : () {
+                        if (_formKey.currentState!.validate()) {
+                          viewModel.submit(
+                            context,
+                            initialItem: widget.initialItem,
+                            onSuccess: widget.onSuccess,
+                            onReset: _resetForm,
+                          );
+                        }
+                      },
                 borderRadius: BorderRadius.circular(14),
                 child: Container(
                   padding: const EdgeInsets.symmetric(vertical: 18),
                   child: Center(
-                    child: isSubmitting.value
+                    child: state.isSubmitting
                         ? const SizedBox(
                             width: 24,
                             height: 24,

@@ -1,17 +1,13 @@
-class CleaningItem {
-  final int id;
-  String type;
-  int duration;
-  String? note;
+import 'package:freezed_annotation/freezed_annotation.dart';
 
-  CleaningItem({required this.id, this.type = 'regular', this.duration = 15, this.note});
+part 'cleaning_item.freezed.dart';
 
-  CleaningItem copyWith({String? type, int? duration, String? note}) {
-    return CleaningItem(
-      id: this.id,
-      type: type ?? this.type,
-      duration: duration ?? this.duration,
-      note: note ?? this.note,
-    );
-  }
+@freezed
+abstract class CleaningItem with _$CleaningItem {
+  const factory CleaningItem({
+    required int id,
+    @Default('regular') String type,
+    @Default(15) int duration,
+    String? note,
+  }) = _CleaningItem;
 }

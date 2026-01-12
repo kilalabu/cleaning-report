@@ -1,32 +1,23 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_hooks/flutter_hooks.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
-
-import 'dart:html' as html;
 
 import '../../../core/theme/app_theme.dart';
 import '../../../core/widgets/confirm_dialog.dart';
-import '../../../core/utils/dialog_utils.dart';
-import '../../../core/di/providers.dart';
 import '../../../domain/entities/report.dart';
-import '../providers/history_provider.dart';
-
 import '../../report/presentation/cleaning_report_screen.dart';
 import '../../report/presentation/expense_report_screen.dart';
+import '../view_model/history_view_model.dart';
 
-class HistoryScreen extends HookConsumerWidget {
+class HistoryScreen extends ConsumerWidget {
   const HistoryScreen({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final selectedMonth = useState(_getCurrentMonth());
-    final isGeneratingPdf = useState(false);
-    final historyAsync = ref.watch(historyProvider(selectedMonth.value));
-    final totalAmount = ref.watch(totalAmountProvider(selectedMonth.value));
-    // 権限制御はSupabase RLSで対応済み
-    // - staff: 自分のデータのみ表示・編集・削除可能
-    // - admin: 全データ表示・編集・削除可能
-    // - PDF発行: 全員可能
+    final viewModelState = ref.watch(historyViewModelProvider);
+    final viewModel = ref.read(historyViewModelProvider.notifier);
+
+    // 権限制御などはViewModel内で処理、またはここでstateに基づいて表示制御
+    // ...
 
     return Scaffold(
       backgroundColor: AppTheme.background,
@@ -48,7 +39,7 @@ class HistoryScreen extends HookConsumerWidget {
                   child: Column(
                     children: [
                       Text(
-                        '${_getMonthLabel(selectedMonth.value)}の請求合計',
+                        '${viewModel.getMonthLabel(viewModelState.selectedMonth)}の請求合計',
                         style: TextStyle(
                           color: Colors.white.withOpacity(0.85),
                           fontSize: 14,
@@ -56,7 +47,7 @@ class HistoryScreen extends HookConsumerWidget {
                       ),
                       const SizedBox(height: 8),
                       Text(
-                        '¥${_formatNumber(totalAmount)}',
+                        '¥${viewModel.formatNumber(viewModelState.totalAmount)}',
                         style: const TextStyle(
                           color: Colors.white,
                           fontSize: 36,
@@ -82,18 +73,21 @@ class HistoryScreen extends HookConsumerWidget {
                           decoration: AppTheme.inputDecoration,
                           child: DropdownButtonHideUnderline(
                             child: DropdownButton<String>(
-                              value: selectedMonth.value,
+                              value: viewModelState.selectedMonth,
                               isExpanded: true,
                               icon: Icon(Icons.expand_more,
                                   color: AppTheme.mutedForeground),
-                              items: _generateMonthOptions().map((m) {
+                              items: viewModel.monthOptions.map((m) {
                                 return DropdownMenuItem(
                                   value: m,
-                                  child: Text(_getMonthLabel(m)),
+                                  child: Text(viewModel.getMonthLabel(m)),
                                 );
                               }).toList(),
-                              onChanged: (v) => selectedMonth.value =
-                                  v ?? selectedMonth.value,
+                              onChanged: (v) {
+                                if (v != null) {
+                                  viewModel.updateMonth(v);
+                                }
+                              },
                             ),
                           ),
                         ),
@@ -116,16 +110,15 @@ class HistoryScreen extends HookConsumerWidget {
                         child: Material(
                           color: Colors.transparent,
                           child: InkWell(
-                            onTap: isGeneratingPdf.value
+                            onTap: viewModelState.isGeneratingPdf
                                 ? null
-                                : () => _showDownloadDialog(context, ref,
-                                    selectedMonth.value, isGeneratingPdf),
+                                : () => _showDownloadDialog(context, ref),
                             borderRadius: BorderRadius.circular(12),
                             child: SizedBox(
                               width: 48,
                               height: 48,
                               child: Center(
-                                child: isGeneratingPdf.value
+                                child: viewModelState.isGeneratingPdf
                                     ? const SizedBox(
                                         width: 20,
                                         height: 20,
@@ -147,7 +140,7 @@ class HistoryScreen extends HookConsumerWidget {
                 const SizedBox(height: 20),
 
                 // 履歴リスト
-                historyAsync.when(
+                viewModelState.reports.when(
                   data: (items) {
                     if (items.isEmpty) {
                       return Container(
@@ -170,18 +163,16 @@ class HistoryScreen extends HookConsumerWidget {
                     }
                     return Column(
                       children: items.map((report) {
-                        final canEdit = _isEditable(report.date);
+                        final canEdit = viewModel.isEditable(report.date);
                         return Padding(
                           padding: const EdgeInsets.only(bottom: 8),
                           child: _HistoryItemTile(
                             report: report,
                             onDelete: canEdit
-                                ? () => _deleteItem(context, ref, report.id,
-                                    selectedMonth.value)
+                                ? () => _deleteItem(context, ref, report.id)
                                 : null,
                             onEdit: canEdit
-                                ? () => _editItem(
-                                    context, ref, report, selectedMonth.value)
+                                ? () => _editItem(context, ref, report)
                                 : null,
                           ),
                         );
@@ -212,51 +203,14 @@ class HistoryScreen extends HookConsumerWidget {
     );
   }
 
-  String _getCurrentMonth() {
-    final now = DateTime.now();
-    return '${now.year}-${now.month.toString().padLeft(2, '0')}';
-  }
-
-  bool _isEditable(DateTime date) {
-    final now = DateTime.now();
-    // 許可される最も古い月の1日（先月の1日）
-    final cutoff = DateTime(now.year, now.month - 1, 1);
-    return !date.isBefore(cutoff);
-  }
-
-  List<String> _generateMonthOptions() {
-    final now = DateTime.now();
-    final start = DateTime(2025, 12);
-
-    int diff = (now.year - start.year) * 12 + now.month - start.month + 1;
-    if (diff < 1) diff = 1;
-
-    return List.generate(diff, (i) {
-      final d = DateTime(now.year, now.month - i);
-      return '${d.year}-${d.month.toString().padLeft(2, '0')}';
-    });
-  }
-
-  String _formatNumber(int n) {
-    return n.toString().replaceAllMapped(
-        RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'), (m) => '${m[1]},');
-  }
-
-  String _getMonthLabel(String month) {
-    final parts = month.split('-');
-    final year = parts[0];
-    final monthNum = int.parse(parts[1]);
-    return '$year年${monthNum}月';
-  }
-
   Future<void> _showDownloadDialog(
     BuildContext context,
     WidgetRef ref,
-    String month,
-    ValueNotifier<bool> isGenerating,
   ) async {
     final now = DateTime.now();
     DateTime selectedDate = now;
+    final viewModelState = ref.watch(historyViewModelProvider);
+    final viewModel = ref.read(historyViewModelProvider.notifier);
 
     await showDialog(
       context: context,
@@ -264,7 +218,7 @@ class HistoryScreen extends HookConsumerWidget {
         builder: (context, setState) {
           final dateStr =
               '${selectedDate.year}年${selectedDate.month}月${selectedDate.day}日';
-          final monthParts = month.split('-');
+          final monthParts = viewModelState.selectedMonth.split('-');
           final formattedMonth =
               '${monthParts[0]}年${int.parse(monthParts[1])}月分';
 
@@ -321,7 +275,7 @@ class HistoryScreen extends HookConsumerWidget {
               ElevatedButton(
                 onPressed: () {
                   Navigator.pop(ctx);
-                  _generatePdf(context, ref, month, isGenerating, selectedDate);
+                  viewModel.generatePdf(context, selectedDate);
                 },
                 style: ElevatedButton.styleFrom(
                   backgroundColor: AppTheme.primary,
@@ -336,70 +290,19 @@ class HistoryScreen extends HookConsumerWidget {
     );
   }
 
-  Future<void> _generatePdf(
-    BuildContext context,
-    WidgetRef ref,
-    String month,
-    ValueNotifier<bool> isGenerating,
-    DateTime billingDate,
-  ) async {
-    isGenerating.value = true;
-
-    try {
-      // PdfRepository 経由でPDF生成
-      final pdfRepository = ref.read(pdfRepositoryProvider);
-      final result = await pdfRepository.generatePdf(
-        month: month,
-        billingDate: billingDate,
-      );
-
-      isGenerating.value = false;
-
-      if (result['success'] == true) {
-        final dataUrl = result['dataUrl'] as String;
-        final filename = result['filename'] as String;
-
-        // ダウンロード開始
-        html.AnchorElement(href: dataUrl)
-          ..setAttribute('download', filename)
-          ..click();
-
-        if (context.mounted) {
-          await showSuccessDialog(context, '請求書のダウンロードが\n完了しました');
-        }
-      } else {
-        if (context.mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('エラー: ${result['message']}')),
-          );
-        }
-      }
-    } catch (e) {
-      isGenerating.value = false;
-      if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('エラー: $e')),
-        );
-      }
-    }
-  }
-
   Future<void> _deleteItem(
-      BuildContext context, WidgetRef ref, String id, String month) async {
+      BuildContext context, WidgetRef ref, String id) async {
     final confirmed = await showDeleteConfirmDialog(context: context);
 
     if (confirmed == true) {
-      await ref.read(historyNotifierProvider.notifier).deleteReport(id, month);
-
-      if (context.mounted) {
-        ScaffoldMessenger.of(context)
-            .showSnackBar(const SnackBar(content: Text('削除しました')));
-      }
+      await ref
+          .read(historyViewModelProvider.notifier)
+          .deleteReport(id, context);
     }
   }
 
   Future<void> _editItem(
-      BuildContext context, WidgetRef ref, Report report, String month) async {
+      BuildContext context, WidgetRef ref, Report report) async {
     final isWork = report.type == ReportType.work;
 
     // Report EntityをMap<String, dynamic>に変換（既存のフォームとの互換性のため）
@@ -437,11 +340,17 @@ class HistoryScreen extends HookConsumerWidget {
               child: isWork
                   ? CleaningReportForm(
                       initialItem: item,
-                      onSuccess: () => Navigator.pop(ctx),
+                      onSuccess: () {
+                        Navigator.pop(ctx);
+                        ref.read(historyViewModelProvider.notifier).refresh();
+                      },
                     )
                   : ExpenseReportForm(
                       initialItem: item,
-                      onSuccess: () => Navigator.pop(ctx),
+                      onSuccess: () {
+                        Navigator.pop(ctx);
+                        ref.read(historyViewModelProvider.notifier).refresh();
+                      },
                     ),
             ),
           ),
