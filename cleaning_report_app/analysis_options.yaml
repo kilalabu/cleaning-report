@@ -1,1 +1,10 @@
 include: package:flutter_lints/flutter.yaml
+
+# このアプリはWeb専用のため、dart:html関連の警告を無視
+linter:
+  rules:
+    avoid_web_libraries_in_flutter: false
+
+analyzer:
+  errors:
+    deprecated_member_use: ignore
