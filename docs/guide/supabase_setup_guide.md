@@ -85,15 +85,26 @@ VALUES
 
 ## 完了チェックリスト
 
-- [ ] プロジェクト作成完了
-- [ ] テーブル作成完了（profiles, reports）
-- [ ] RLSポリシー設定完了
-- [ ] 管理者ユーザー作成＆profiles追加
-- [ ] スタッフユーザー作成＆profiles追加
-- [ ] Project URL と Publishable key をメモ
+- [x] プロジェクト作成完了
+- [x] テーブル作成完了（profiles, reports）
+- [x] RLSポリシー設定完了
+- [x] 管理者ユーザー作成＆profiles追加
+- [x] スタッフユーザー作成＆profiles追加
+- [x] Project URL と Publishable key をメモ
+
+> [!TIP]
+> **RLSポリシー設定時の注意**
+> `profiles` テーブルのポリシー内で `profiles` 自身を参照すると無限再帰が発生します。
+> 詳細は `phase2_db_design_background.md` を参照してください。
 
 ---
 
 ## 次のステップ
 
+✅ **セットアップ完了！**
+
 接続情報が取得できたら、Flutterプロジェクトに `supabase_flutter` パッケージを追加して接続テストを行います。
+
+詳細な実装手順は以下のドキュメントを参照してください：
+- [DB設計背景](phase2_db_design_background.md)
+- [Edge Functions設計](edge_functions_design.md)

@@ -249,13 +249,19 @@ const gasResponse = await fetch(GAS_ENDPOINT, {
 - 複雑度が上がる
 - 外部サービスのコストがかかる可能性
 
-### 推奨案
+### 推奨案（実装済み）
 
-**Phase 2では選択肢2（GAS継続利用）**を推奨します：
+**Phase 2では選択肢2（GAS継続利用）**を採用しました：
 
 1. 既存のPDF生成ロジックが動作実績あり
 2. スプレッドシートテンプレートを使った柔軟なレイアウト
-3. Edge Functionsは認証ラッパーとして使用し、GASへの橋渡しを行う
+3. **Edge FunctionsはSupabaseからデータを取得し、GASにPOSTで渡す**
+
+> [!IMPORTANT]
+> **実装上の注意点**
+> - `supabase/config.toml` で `verify_jwt = false` に設定が必要（Edge Function内で独自に認証チェックを行うため）
+> - GASはPOSTでデータを受け取り、スプレッドシートからのデータ読み込みは不要に
+> - データの唯一のソースはSupabaseに統一され、整合性が保たれる
 
 将来的にGASを完全に置き換えたい場合は、選択肢1への移行を検討できます。
 
@@ -357,14 +363,14 @@ return new Response(JSON.stringify(data), {
 
 ## 次のステップ
 
-この設計で問題なければ、以下の順序で実装を進めます：
+✅ **Phase 2.5 完了!** 以下の実装が完了しています：
 
-1. [ ] Supabase CLIインストール
-2. [ ] `generate-pdf` Edge Function作成
-3. [ ] 認証チェック + GAS呼び出しロジック実装
-4. [ ] ローカルテスト
-5. [ ] デプロイ
-6. [ ] Flutterアプリから呼び出し修正
+1. [x] Supabase CLIインストール
+2. [x] `generate-pdf` Edge Function作成
+3. [x] Supabaseからデータ取得 + GAS呼び出しロジック実装
+4. [x] デプロイ
+5. [x] Flutterアプリから呼び出し修正（PdfRepositoryパターン）
+6. [x] GASのPDF生成専用化（不要なCRUD関数削除）
 
 ---
 
