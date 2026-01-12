@@ -7,6 +7,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'core/theme/app_theme.dart';
 import 'core/config/supabase_config.dart';
 import 'features/auth/presentation/login_screen.dart';
+import 'features/splash/presentation/splash_screen.dart';
 import 'features/report/presentation/cleaning_report_screen.dart';
 import 'features/report/presentation/expense_report_screen.dart';
 import 'features/history/presentation/history_screen.dart';
@@ -43,25 +44,34 @@ class CleaningReportApp extends StatelessWidget {
 }
 
 final _router = GoRouter(
-  initialLocation: '/login',
+  initialLocation: '/splash',
   redirect: (context, state) {
     final session = Supabase.instance.client.auth.currentSession;
     final isLoggedIn = session != null;
-    final isLoginRoute = state.matchedLocation == '/login';
+    final matchedLocation = state.matchedLocation;
+
+    // スプラッシュ画面はリダイレクトしない（セッション復元を待機）
+    if (matchedLocation == '/splash') {
+      return null;
+    }
 
     // 未認証でログイン以外のページにアクセス → ログインへリダイレクト
-    if (!isLoggedIn && !isLoginRoute) {
+    if (!isLoggedIn && matchedLocation != '/login') {
       return '/login';
     }
 
     // 認証済みでログインページにアクセス → メイン画面へリダイレクト
-    if (isLoggedIn && isLoginRoute) {
+    if (isLoggedIn && matchedLocation == '/login') {
       return '/report/cleaning';
     }
 
     return null;
   },
   routes: [
+    GoRoute(
+      path: '/splash',
+      builder: (context, state) => const SplashScreen(),
+    ),
     GoRoute(
       path: '/login',
       builder: (context, state) => const LoginScreen(),
