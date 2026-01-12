@@ -23,6 +23,10 @@ class HistoryScreen extends HookConsumerWidget {
     final isGeneratingPdf = useState(false);
     final historyAsync = ref.watch(historyProvider(selectedMonth.value));
     final totalAmount = ref.watch(totalAmountProvider(selectedMonth.value));
+    // 権限制御はSupabase RLSで対応済み
+    // - staff: 自分のデータのみ表示・編集・削除可能
+    // - admin: 全データ表示・編集・削除可能
+    // - PDF発行: 全員可能
 
     return Scaffold(
       backgroundColor: AppTheme.background,
