@@ -4,8 +4,10 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../domain/entities/user.dart' as domain;
 import '../../domain/repositories/auth_repository.dart';
 import '../../domain/repositories/report_repository.dart';
+import '../../domain/repositories/pdf_repository.dart';
 import '../../data/repositories/supabase_auth_repository.dart';
 import '../../data/repositories/supabase_report_repository.dart';
+import '../../data/repositories/supabase_pdf_repository.dart';
 
 /// Supabase Client Provider
 final supabaseClientProvider = Provider<SupabaseClient>((ref) {
@@ -26,6 +28,14 @@ final authRepositoryProvider = Provider<AuthRepository>((ref) {
 final reportRepositoryProvider = Provider<ReportRepository>((ref) {
   final client = ref.watch(supabaseClientProvider);
   return SupabaseReportRepository(client);
+});
+
+/// PDF Repository Provider
+///
+/// Phase 3 で KtorPdfRepository に差し替える場合はここを変更するだけ
+final pdfRepositoryProvider = Provider<PdfRepository>((ref) {
+  final client = ref.watch(supabaseClientProvider);
+  return SupabasePdfRepository(client);
 });
 
 /// 現在のユーザー（認証状態）を監視するProvider
