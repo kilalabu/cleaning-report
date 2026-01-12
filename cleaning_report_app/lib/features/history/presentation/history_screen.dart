@@ -1,13 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_hooks/flutter_hooks.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
 
 import 'dart:html' as html;
 
 import '../../../core/theme/app_theme.dart';
 import '../../../core/widgets/confirm_dialog.dart';
 import '../../../core/utils/dialog_utils.dart';
+import '../../../core/di/providers.dart';
 import '../../../domain/entities/report.dart';
 import '../providers/history_provider.dart';
 
@@ -342,47 +342,31 @@ class HistoryScreen extends HookConsumerWidget {
     isGenerating.value = true;
 
     try {
-      // Supabase Edge Function 経由でPDF生成
-      final supabase = Supabase.instance.client;
-      final billingDateStr =
-          '${billingDate.year}-${billingDate.month.toString().padLeft(2, '0')}-${billingDate.day.toString().padLeft(2, '0')}';
-
-      final response = await supabase.functions.invoke(
-        'generate-pdf',
-        body: {
-          'month': month,
-          'billingDate': billingDateStr,
-        },
+      // PdfRepository 経由でPDF生成
+      final pdfRepository = ref.read(pdfRepositoryProvider);
+      final result = await pdfRepository.generatePdf(
+        month: month,
+        billingDate: billingDate,
       );
 
       isGenerating.value = false;
 
-      if (response.status == 200) {
-        final result = response.data as Map<String, dynamic>;
+      if (result['success'] == true) {
+        final dataUrl = result['dataUrl'] as String;
+        final filename = result['filename'] as String;
 
-        if (result['success'] == true) {
-          final dataUrl = result['data'] as String;
-          final filename = result['filename'] as String;
+        // ダウンロード開始
+        html.AnchorElement(href: dataUrl)
+          ..setAttribute('download', filename)
+          ..click();
 
-          // ダウンロード開始
-          html.AnchorElement(href: dataUrl)
-            ..setAttribute('download', filename)
-            ..click();
-
-          if (context.mounted) {
-            await showSuccessDialog(context, '請求書のダウンロードが\n完了しました');
-          }
-        } else {
-          if (context.mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(content: Text('エラー: ${result['message']}')),
-            );
-          }
+        if (context.mounted) {
+          await showSuccessDialog(context, '請求書のダウンロードが\n完了しました');
         }
       } else {
         if (context.mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('PDF生成エラー: ${response.status}')),
+            SnackBar(content: Text('エラー: ${result['message']}')),
           );
         }
       }
