@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_hooks/flutter_hooks.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 import 'dart:html' as html;
 
@@ -9,7 +10,6 @@ import '../../../core/widgets/confirm_dialog.dart';
 import '../../../core/utils/dialog_utils.dart';
 import '../../../domain/entities/report.dart';
 import '../providers/history_provider.dart';
-import '../../auth/providers/auth_provider.dart';
 
 import '../../report/presentation/cleaning_report_screen.dart';
 import '../../report/presentation/expense_report_screen.dart';
@@ -341,29 +341,56 @@ class HistoryScreen extends HookConsumerWidget {
   ) async {
     isGenerating.value = true;
 
-    // TODO: Phase 2.5 で Edge Functions 経由に移行
-    final api = ref.read(apiClientProvider);
-    final result =
-        await api.generatePdf(month: month, billingDate: billingDate);
+    try {
+      // Supabase Edge Function 経由でPDF生成
+      final supabase = Supabase.instance.client;
+      final billingDateStr =
+          '${billingDate.year}-${billingDate.month.toString().padLeft(2, '0')}-${billingDate.day.toString().padLeft(2, '0')}';
 
-    isGenerating.value = false;
+      final response = await supabase.functions.invoke(
+        'generate-pdf',
+        body: {
+          'month': month,
+          'billingDate': billingDateStr,
+        },
+      );
 
-    if (result['success'] == true) {
-      final dataUrl = result['data'] as String;
-      final filename = result['filename'] as String;
+      isGenerating.value = false;
 
-      // ダウンロード開始
-      html.AnchorElement(href: dataUrl)
-        ..setAttribute('download', filename)
-        ..click();
+      if (response.status == 200) {
+        final result = response.data as Map<String, dynamic>;
 
-      if (context.mounted) {
-        await showSuccessDialog(context, '請求書のダウンロードが\n完了しました');
+        if (result['success'] == true) {
+          final dataUrl = result['data'] as String;
+          final filename = result['filename'] as String;
+
+          // ダウンロード開始
+          html.AnchorElement(href: dataUrl)
+            ..setAttribute('download', filename)
+            ..click();
+
+          if (context.mounted) {
+            await showSuccessDialog(context, '請求書のダウンロードが\n完了しました');
+          }
+        } else {
+          if (context.mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(content: Text('エラー: ${result['message']}')),
+            );
+          }
+        }
+      } else {
+        if (context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('PDF生成エラー: ${response.status}')),
+          );
+        }
       }
-    } else {
+    } catch (e) {
+      isGenerating.value = false;
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('エラー: ${result['message']}')),
+          SnackBar(content: Text('エラー: $e')),
         );
       }
     }
