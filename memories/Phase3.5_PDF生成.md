@@ -27,7 +27,7 @@
 
 ### Step 1: 依存関係追加（Ktor側）
 
-#### `ktor-server/build.gradle.kts` に追加
+#### `server/build.gradle.kts` に追加
 
 ```kotlin
 dependencies {
@@ -44,7 +44,7 @@ dependencies {
 
 ### Step 2: 環境変数追加
 
-#### `ktor-server/.env` に追加
+#### `server/.env` に追加
 
 ```bash
 # 既存の設定...
@@ -57,7 +57,7 @@ GAS_ENDPOINT=https://script.google.com/macros/s/xxxxx/exec
 
 ### Step 3: GAS APIクライアント作成
 
-#### `ktor-server/src/main/kotlin/com/cleaning/external/GasApiClient.kt`
+#### `server/src/main/kotlin/com/cleaning/external/GasApiClient.kt`
 
 ```kotlin
 package com.cleaning.external
@@ -140,7 +140,7 @@ data class PdfGenerateResponse(
 
 ### Step 4: PDFサービス作成
 
-#### `ktor-server/src/main/kotlin/com/cleaning/services/PdfService.kt`
+#### `server/src/main/kotlin/com/cleaning/services/PdfService.kt`
 
 ```kotlin
 package com.cleaning.services
@@ -204,7 +204,7 @@ class PdfService(
 
 ### Step 5: Koinモジュール更新
 
-#### `ktor-server/src/main/kotlin/com/cleaning/di/AppModule.kt`
+#### `server/src/main/kotlin/com/cleaning/di/AppModule.kt`
 
 ```kotlin
 package com.cleaning.di
@@ -231,7 +231,7 @@ val appModule = module {
 
 ### Step 6: PDF生成APIルート作成
 
-#### `ktor-server/src/main/kotlin/com/cleaning/routes/PdfRoutes.kt`
+#### `server/src/main/kotlin/com/cleaning/routes/PdfRoutes.kt`
 
 ```kotlin
 package com.cleaning.routes
@@ -308,7 +308,7 @@ fun Route.pdfRoutes() {
 
 ### Step 7: Routing更新
 
-#### `ktor-server/src/main/kotlin/com/cleaning/plugins/Routing.kt`
+#### `server/src/main/kotlin/com/cleaning/plugins/Routing.kt`
 
 ```kotlin
 package com.cleaning.plugins
@@ -428,7 +428,7 @@ final pdfRepositoryProvider = Provider<PdfRepository>((ref) {
 
 ```bash
 # Ktorサーバー起動
-cd /Users/kuwa/Develop/studio/cleaning-report/ktor-server
+cd /Users/kuwa/Develop/studio/cleaning-report/server
 export $(cat .env | xargs) && ./gradlew run
 
 # PDF生成テスト（管理者トークンが必要）
@@ -443,7 +443,7 @@ curl -X POST http://localhost:8080/api/v1/reports/pdf \
 ## ディレクトリ構成（Phase 3.5完了後）
 
 ```
-ktor-server/src/main/kotlin/com/cleaning/
+server/src/main/kotlin/com/cleaning/
 ├── Application.kt
 ├── auth/
 │   └── AuthUtils.kt

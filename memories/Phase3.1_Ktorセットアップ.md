@@ -2,7 +2,7 @@
 
 ## 概要
 
-このドキュメントでは、Ktorを使った最小限のAPIサーバーを構築し、Cloud Runへデプロイするまでの手順を解説します。
+このドキュメントでは、IntelliJ IDEAを使ってKtorプロジェクトを作成し、Cloud Runへデプロイするまでの手順を解説します。
 
 **ゴール**: `/health` エンドポイントが動作するKtorサーバーをCloud Runで稼働させる
 
@@ -21,151 +21,184 @@ KtorはJetBrains社が開発したKotlin製の非同期Webフレームワーク�
 | 状態管理 | Riverpod/Provider | Koin (Phase 3.2で導入) |
 | ビルドツール | `flutter build` | `./gradlew build` |
 
-### Gradleとは？
-JavaやKotlinプロジェクトのビルドツールです。Flutterでいう`pubspec.yaml` + `flutter`コマンドに相当します。
+### プロジェクト名について
+ディレクトリ名は `server` とし、シンプルに保ちます。Ktorを使っていることはビルドファイルで明示されるため、ディレクトリ名に含める必要はありません。
+
+---
+
+## 前提条件
+
+- **IntelliJ IDEA** がインストール済み（Community版でOK）
+- **Ktorプラグイン** がインストール済み（後述）
+- **JDK 17以上** がインストール済み
 
 ---
 
 ## 実装手順
 
-### Step 1: プロジェクトディレクトリ作成
+### Step 1: Ktorプラグインのインストール
 
-```bash
-cd /Users/kuwa/Develop/studio/cleaning-report
-mkdir -p ktor-server/src/main/kotlin/com/cleaning
-mkdir -p ktor-server/src/main/resources
-cd ktor-server
-```
+IntelliJ IDEAでKtorプロジェクトを作成するには、Ktorプラグインが必要です。
 
----
-
-### Step 2: Gradleビルドファイル作成
-
-#### `ktor-server/settings.gradle.kts`
-
-```kotlin
-rootProject.name = "cleaning-report-api"
-```
-
-**解説**: プロジェクト名を定義。Flutterでいう`pubspec.yaml`の`name:`に相当。
+1. IntelliJ IDEAを開く
+2. **Preferences** (macOS) または **Settings** (Windows/Linux) を開く
+3. **Plugins** → **Marketplace** タブ
+4. 「**Ktor**」で検索
+5. **Ktor** プラグインをインストール
+6. IDEを再起動
 
 ---
 
-#### `ktor-server/gradle.properties`
+### Step 2: IntelliJ IDEAでプロジェクト作成
 
-```properties
-kotlin.code.style=official
-org.gradle.jvmargs=-Xmx1024m
-```
+1. **File** → **New** → **Project** を選択
 
-**解説**: Gradleの設定。メモリ制限などを指定。
+2. 左側のリストから **Ktor** を選択
 
----
+3. 以下の設定で作成:
 
-#### `ktor-server/build.gradle.kts`
+| 項目 | 設定値 |
+|:---|:---|
+| **Name** | `server` |
+| **Location** | `/Users/kuwa/Develop/studio/cleaning-report/server` |
+| **Build System** | Gradle Kotlin |
+| **Website** | `com.cleaning` |
+| **Artifact** | `server` |
+| **Ktor Version** | 最新（2.3.x以上推奨） |
+| **Engine** | Netty |
+| **Configuration in** | HOCON file |
+| **Add sample code** | ✅ チェック |
 
-```kotlin
-plugins {
-    kotlin("jvm") version "1.9.22"
-    kotlin("plugin.serialization") version "1.9.22"
-    id("io.ktor.plugin") version "2.3.7"
-}
+4. **Next** をクリック
 
-group = "com.cleaning"
-version = "1.0.0"
+5. **Plugins（プラグイン）** 選択画面で以下を追加:
 
-application {
-    mainClass.set("com.cleaning.ApplicationKt")
-}
+   - **Routing** (必須)
+   - **Content Negotiation** (必須)
+   - **kotlinx.serialization** (必須)
 
-repositories {
-    mavenCentral()
-}
-
-dependencies {
-    // Ktor Server
-    implementation("io.ktor:ktor-server-core-jvm")
-    implementation("io.ktor:ktor-server-netty-jvm")
-    implementation("io.ktor:ktor-server-content-negotiation-jvm")
-    implementation("io.ktor:ktor-serialization-kotlinx-json-jvm")
-    
-    // Logging
-    implementation("ch.qos.logback:logback-classic:1.4.14")
-    
-    // Testing
-    testImplementation("io.ktor:ktor-server-tests-jvm")
-    testImplementation("org.jetbrains.kotlin:kotlin-test-junit:1.9.22")
-}
-
-ktor {
-    docker {
-        jreVersion.set(JavaVersion.VERSION_17)
-        localImageName.set("cleaning-report-api")
-    }
-}
-```
-
-**解説**:
-- `plugins`: 使用するGradleプラグイン（Flutter の dependency と似ている）
-- `dependencies`: ライブラリ依存関係（pubspec.yaml の dependencies に相当）
-- `application.mainClass`: エントリポイント指定
-- `ktor.docker`: Docker設定
+6. **Create** をクリック
 
 ---
 
-### Step 3: アプリケーションコード作成
+### Step 3: プロジェクト構成の確認
 
-#### `ktor-server/src/main/kotlin/com/cleaning/Application.kt`
+IntelliJ IDEAが自動生成したプロジェクト構成:
+
+```
+server/
+├── build.gradle.kts          # ビルド設定（自動生成）
+├── settings.gradle.kts       # プロジェクト設定（自動生成）
+├── gradle.properties         # Gradle設定（自動生成）
+├── gradle/
+│   └── wrapper/              # Gradle Wrapper（自動生成）
+├── gradlew                   # Unix用ビルドスクリプト（自動生成）
+├── gradlew.bat               # Windows用（自動生成）
+└── src/
+    └── main/
+        ├── kotlin/
+        │   └── com/
+        │       └── cleaning/
+        │           ├── Application.kt       # 自動生成
+        │           └── plugins/
+        │               ├── Routing.kt       # 自動生成
+        │               └── Serialization.kt # 自動生成
+        └── resources/
+            ├── application.conf             # Ktor設定（自動生成）
+            └── logback.xml                  # ログ設定（自動生成）
+```
+
+> **Note**: ほとんどのファイルが自動生成されます！手動で作る必要はありません。
+
+---
+
+### Step 4: Application.ktの確認・修正
+
+自動生成された `Application.kt` を確認し、Cloud Run対応の修正を加えます。
+
+#### `src/main/kotlin/com/cleaning/Application.kt`
 
 ```kotlin
 package com.cleaning
 
+import com.cleaning.plugins.*
 import io.ktor.server.application.*
 import io.ktor.server.engine.*
 import io.ktor.server.netty.*
-import com.cleaning.plugins.*
 
 fun main() {
     // 環境変数PORTを取得（Cloud Runでは自動設定される）
     val port = System.getenv("PORT")?.toInt() ?: 8080
     
-    embeddedServer(Netty, port = port, host = "0.0.0.0") {
-        configureRouting()
-        configureSerialization()
-    }.start(wait = true)
+    embeddedServer(Netty, port = port, host = "0.0.0.0", module = Application::module)
+        .start(wait = true)
+}
+
+fun Application.module() {
+    configureSerialization()
+    configureRouting()
 }
 ```
 
 **解説**:
-- `embeddedServer`: Nettyサーバーを起動（FlutterでいうrunApp()に相当）
-- `port`: Cloud Runは環境変数`PORT`でポートを指定
-- `host = "0.0.0.0"`: 全てのインターフェースでリッスン（Cloud Run必須）
+- `host = "0.0.0.0"`: Cloud Run必須（全インターフェースでリッスン）
+- `System.getenv("PORT")`: Cloud Runはこの環境変数でポートを指定
 
 ---
 
-#### `ktor-server/src/main/kotlin/com/cleaning/plugins/Routing.kt`
+### Step 5: ヘルスチェックルート追加
+
+自動生成された `Routing.kt` にヘルスチェックを追加します。
+
+#### `src/main/kotlin/com/cleaning/plugins/Routing.kt`
 
 ```kotlin
 package com.cleaning.plugins
 
+import io.ktor.http.*
 import io.ktor.server.application.*
+import io.ktor.server.response.*
 import io.ktor.server.routing.*
-import com.cleaning.routes.healthRoutes
+import kotlinx.serialization.Serializable
+
+@Serializable
+data class HealthResponse(
+    val status: String,
+    val timestamp: Long
+)
 
 fun Application.configureRouting() {
     routing {
-        healthRoutes()
+        // ヘルスチェックエンドポイント
+        get("/health") {
+            call.respond(
+                HttpStatusCode.OK,
+                HealthResponse(
+                    status = "ok",
+                    timestamp = System.currentTimeMillis()
+                )
+            )
+        }
+        
+        // 自動生成されたサンプルルート（削除してもOK）
+        get("/") {
+            call.respondText("Hello World!")
+        }
     }
 }
 ```
 
 **解説**:
-- `routing { }`: ルート定義ブロック（Flutter のGoRouterに相当）
-- `Application.configureRouting()`: 拡張関数でApplicationに機能追加
+- `/health`: サーバーの死活監視用エンドポイント
+- Cloud Runはこのエンドポイントでヘルスチェックを行う
 
 ---
 
-#### `ktor-server/src/main/kotlin/com/cleaning/plugins/Serialization.kt`
+### Step 6: Serialization.ktの確認
+
+自動生成された `Serialization.kt` はそのままでOKです。
+
+#### `src/main/kotlin/com/cleaning/plugins/Serialization.kt`
 
 ```kotlin
 package com.cleaning.plugins
@@ -185,105 +218,26 @@ fun Application.configureSerialization() {
 }
 ```
 
-**解説**:
-- `install()`: プラグインをインストール（FlutterでいうProviderの追加に近い）
-- `ContentNegotiation`: リクエスト/レスポンスのJSON変換を自動化
-
----
-
-#### `ktor-server/src/main/kotlin/com/cleaning/routes/HealthRoute.kt`
-
-```kotlin
-package com.cleaning.routes
-
-import io.ktor.http.*
-import io.ktor.server.application.*
-import io.ktor.server.response.*
-import io.ktor.server.routing.*
-import kotlinx.serialization.Serializable
-
-@Serializable
-data class HealthResponse(
-    val status: String,
-    val timestamp: Long
-)
-
-fun Route.healthRoutes() {
-    get("/health") {
-        call.respond(
-            HttpStatusCode.OK,
-            HealthResponse(
-                status = "ok",
-                timestamp = System.currentTimeMillis()
-            )
-        )
-    }
-}
-```
-
-**解説**:
-- `@Serializable`: kotlinx.serializationでJSON変換対象にする
-- `get("/health")`: GETリクエストハンドラ定義
-- `call.respond()`: レスポンス返却（Flutterでいうreturn Response）
-
----
-
-### Step 4: ログ設定
-
-#### `ktor-server/src/main/resources/logback.xml`
-
-```xml
-<configuration>
-    <appender name="STDOUT" class="ch.qos.logback.core.ConsoleAppender">
-        <encoder>
-            <pattern>%d{YYYY-MM-dd HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n</pattern>
-        </encoder>
-    </appender>
-    <root level="INFO">
-        <appender-ref ref="STDOUT"/>
-    </root>
-</configuration>
-```
-
----
-
-### Step 5: .gitignore作成
-
-#### `ktor-server/.gitignore`
-
-```
-.gradle/
-build/
-.idea/
-*.iml
-local.properties
-.env
-```
-
----
-
-### Step 6: Gradle Wrapper生成
-
-```bash
-cd /Users/kuwa/Develop/studio/cleaning-report/ktor-server
-
-# Gradle Wrapperがない場合は生成（要: Gradle本体をインストール）
-# brew install gradle
-gradle wrapper --gradle-version 8.5
-```
-
-> **Note**: `gradle`コマンドがない場合は `brew install gradle` でインストール
-
 ---
 
 ### Step 7: ローカルで起動確認
 
+#### IntelliJ IDEAから起動
+
+1. `Application.kt` を開く
+2. `fun main()` の左にある ▶️ ボタンをクリック
+3. **Run 'ApplicationKt'** を選択
+
+または、ターミナルから:
+
 ```bash
-cd /Users/kuwa/Develop/studio/cleaning-report/ktor-server
+cd /Users/kuwa/Develop/studio/cleaning-report/server
 ./gradlew run
 ```
 
-別ターミナルで確認:
+#### 動作確認
+
+別ターミナルで:
 
 ```bash
 curl http://localhost:8080/health
@@ -300,9 +254,25 @@ curl http://localhost:8080/health
 
 ---
 
-### Step 8: Dockerfile作成
+### Step 8: .gitignore確認
 
-#### `ktor-server/Dockerfile`
+IntelliJ IDEAが `.gitignore` を自動生成しますが、以下を追加しておくと良いでしょう:
+
+#### `server/.gitignore` に追加
+
+```
+# 既存の内容に追加
+.env
+*.env.local
+```
+
+---
+
+### Step 9: Dockerfile作成
+
+Dockerfileは手動で作成します。
+
+#### `server/Dockerfile`
 
 ```dockerfile
 # ビルドステージ
@@ -321,16 +291,26 @@ ENTRYPOINT ["java", "-jar", "app.jar"]
 
 **解説**:
 - マルチステージビルド: ビルド用イメージで依存解決→軽量イメージにJARだけコピー
-- `buildFatJar`: 全依存を含む単一JARを生成
+- `buildFatJar`: 全依存を含む単一JAR生成
 
 ---
 
-#### Fat JAR設定を追加
+### Step 10: Fat JAR設定確認
 
-`build.gradle.kts` に以下を追加:
+`build.gradle.kts` に以下の設定があるか確認（Ktorプラグインで自動追加されている場合もある）:
 
 ```kotlin
-// 既存のktor { } ブロックの後に追加
+ktor {
+    fatJar {
+        archiveFileName.set("app.jar")
+    }
+}
+```
+
+もしなければ追加:
+
+```kotlin
+// build.gradle.kts の末尾に追加
 tasks.register<Jar>("buildFatJar") {
     archiveClassifier.set("all")
     duplicatesStrategy = DuplicatesStrategy.EXCLUDE
@@ -344,10 +324,10 @@ tasks.register<Jar>("buildFatJar") {
 
 ---
 
-### Step 9: Dockerイメージビルド確認
+### Step 11: Dockerイメージビルド確認
 
 ```bash
-cd /Users/kuwa/Develop/studio/cleaning-report/ktor-server
+cd /Users/kuwa/Develop/studio/cleaning-report/server
 docker build -t cleaning-report-api .
 docker run -p 8080:8080 cleaning-report-api
 
@@ -357,9 +337,9 @@ curl http://localhost:8080/health
 
 ---
 
-### Step 10: Cloud Runへデプロイ
+### Step 12: Cloud Runへデプロイ
 
-#### 10-1. Google Cloud CLIセットアップ
+#### 12-1. Google Cloud CLIセットアップ
 
 ```bash
 # gcloud CLIインストール（未インストールの場合）
@@ -377,7 +357,7 @@ gcloud services enable run.googleapis.com
 gcloud services enable artifactregistry.googleapis.com
 ```
 
-#### 10-2. Artifact Registry設定
+#### 12-2. Artifact Registry設定
 
 ```bash
 # リポジトリ作成
@@ -390,10 +370,10 @@ gcloud artifacts repositories create cleaning-report \
 gcloud auth configure-docker asia-northeast1-docker.pkg.dev
 ```
 
-#### 10-3. イメージをプッシュ
+#### 12-3. イメージをプッシュ
 
 ```bash
-cd /Users/kuwa/Develop/studio/cleaning-report/ktor-server
+cd /Users/kuwa/Develop/studio/cleaning-report/server
 
 # タグ付け
 docker tag cleaning-report-api \
@@ -403,7 +383,7 @@ docker tag cleaning-report-api \
 docker push asia-northeast1-docker.pkg.dev/cleaning-report-api/cleaning-report/api:latest
 ```
 
-#### 10-4. Cloud Runにデプロイ
+#### 12-4. Cloud Runにデプロイ
 
 ```bash
 gcloud run deploy cleaning-report-api \
@@ -422,7 +402,7 @@ gcloud run deploy cleaning-report-api \
 - `--min-instances 0`: コールドスタート許容（無料枠節約）
 - `--max-instances 1`: スケール上限（無料枠節約）
 
-#### 10-5. デプロイ確認
+#### 12-5. デプロイ確認
 
 ```bash
 # デプロイされたURLを取得
@@ -440,37 +420,34 @@ curl https://cleaning-report-api-xxxxx-an.a.run.app/health
 ## ディレクトリ構成（完成形）
 
 ```
-ktor-server/
-├── build.gradle.kts
-├── settings.gradle.kts
-├── gradle.properties
-├── Dockerfile
-├── .gitignore
-├── gradle/
+server/
+├── build.gradle.kts          # 自動生成
+├── settings.gradle.kts       # 自動生成
+├── gradle.properties         # 自動生成
+├── Dockerfile                # 手動作成
+├── .gitignore                # 自動生成 + 追記
+├── gradle/                   # 自動生成
 │   └── wrapper/
-│       ├── gradle-wrapper.jar
-│       └── gradle-wrapper.properties
-├── gradlew
-├── gradlew.bat
+├── gradlew                   # 自動生成
+├── gradlew.bat               # 自動生成
 └── src/
     └── main/
         ├── kotlin/
-        │   └── com/
-        │       └── cleaning/
-        │           ├── Application.kt
-        │           ├── plugins/
-        │           │   ├── Routing.kt
-        │           │   └── Serialization.kt
-        │           └── routes/
-        │               └── HealthRoute.kt
+        │   └── com/cleaning/
+        │       ├── Application.kt    # 自動生成 + 修正
+        │       └── plugins/
+        │           ├── Routing.kt    # 自動生成 + 修正
+        │           └── Serialization.kt  # 自動生成
         └── resources/
-            └── logback.xml
+            ├── application.conf      # 自動生成
+            └── logback.xml           # 自動生成
 ```
 
 ---
 
 ## 成功基準チェックリスト
 
+- [ ] IntelliJ IDEAでKtorプロジェクト作成成功
 - [ ] `./gradlew run` でローカル起動成功
 - [ ] `curl http://localhost:8080/health` が200 OKを返す
 - [ ] `docker build` 成功
@@ -481,6 +458,10 @@ ktor-server/
 ---
 
 ## トラブルシューティング
+
+### Q: Ktorプラグインが見つからない
+
+**A**: IntelliJ IDEA Ultimate版のみKtorプラグインが利用可能です。Community版の場合は[Ktor Project Generator](https://start.ktor.io/)を使用してください。
 
 ### Q: `./gradlew run` でエラー
 
@@ -497,6 +478,17 @@ java -version  # 17以上が必要
 ### Q: Cloud Runでコールドスタートが遅い
 
 **A**: 初回アクセスは10-30秒かかる。これは無料枠で運用する上での制約。
+
+---
+
+## Ktor Project Generator（代替手段）
+
+IntelliJ IDEAのKtorプラグインが使えない場合は、Webベースのジェネレータを使用できます:
+
+1. https://start.ktor.io/ にアクセス
+2. 同様の設定でプロジェクトを生成
+3. ZIPをダウンロードして展開
+4. `/Users/kuwa/Develop/studio/cleaning-report/server` に配置
 
 ---
 

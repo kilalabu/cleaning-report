@@ -39,15 +39,15 @@ Flutter側は引き続きSupabase Authを使用し、KtorではJWTトークン�
 
 ### Step 1: 依存関係追加
 
-#### `ktor-server/build.gradle.kts` に追加
+#### `server/build.gradle.kts` に追加
 
 ```kotlin
 dependencies {
     // 既存の依存関係...
     
     // === 新規追加: JWT認証 ===
-    implementation("io.ktor:ktor-server-auth-jvm")
-    implementation("io.ktor:ktor-server-auth-jwt-jvm")
+    implementation("io.ktor:server-auth-jvm")
+    implementation("io.ktor:server-auth-jwt-jvm")
 }
 ```
 
@@ -55,7 +55,7 @@ dependencies {
 
 ### Step 2: 環境変数追加
 
-#### `ktor-server/.env` に追加
+#### `server/.env` に追加
 
 ```bash
 # 既存の設定...
@@ -72,7 +72,7 @@ SUPABASE_URL=https://xxxx.supabase.co
 
 ### Step 3: 認証プラグイン設定
 
-#### `ktor-server/src/main/kotlin/com/cleaning/plugins/Authentication.kt`
+#### `server/src/main/kotlin/com/cleaning/plugins/Authentication.kt`
 
 ```kotlin
 package com.cleaning.plugins
@@ -142,7 +142,7 @@ fun Application.configureAuthentication() {
 
 ### Step 4: ユーザー情報取得ヘルパー
 
-#### `ktor-server/src/main/kotlin/com/cleaning/auth/AuthUtils.kt`
+#### `server/src/main/kotlin/com/cleaning/auth/AuthUtils.kt`
 
 ```kotlin
 package com.cleaning.auth
@@ -194,7 +194,7 @@ fun ApplicationCall.isAdmin(): Boolean {
 
 ### Step 5: Application.kt更新
 
-#### `ktor-server/src/main/kotlin/com/cleaning/Application.kt`
+#### `server/src/main/kotlin/com/cleaning/Application.kt`
 
 ```kotlin
 package com.cleaning
@@ -223,7 +223,7 @@ fun main() {
 
 ### Step 6: APIルートに認証を適用
 
-#### `ktor-server/src/main/kotlin/com/cleaning/routes/ReportRoutes.kt` を更新
+#### `server/src/main/kotlin/com/cleaning/routes/ReportRoutes.kt` を更新
 
 ```kotlin
 package com.cleaning.routes
@@ -369,7 +369,7 @@ fun Route.reportRoutes() {
 
 ### Step 7: 管理者用ルート追加（オプション）
 
-#### `ktor-server/src/main/kotlin/com/cleaning/routes/AdminRoutes.kt`
+#### `server/src/main/kotlin/com/cleaning/routes/AdminRoutes.kt`
 
 ```kotlin
 package com.cleaning.routes
@@ -440,7 +440,7 @@ curl http://localhost:8080/api/v1/reports?month=2026-01 \
 ## ディレクトリ構成（Phase 3.3完了後）
 
 ```
-ktor-server/src/main/kotlin/com/cleaning/
+server/src/main/kotlin/com/cleaning/
 ├── Application.kt
 ├── auth/
 │   └── AuthUtils.kt             # NEW: 認証ヘルパー

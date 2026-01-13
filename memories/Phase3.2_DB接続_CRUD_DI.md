@@ -41,14 +41,14 @@ Kotlinの軽量なDIフレームワーク。Riverpodと似た役割です。
 
 ### Step 1: 依存関係追加
 
-#### `ktor-server/build.gradle.kts` を更新
+#### `server/build.gradle.kts` を更新
 
 ```kotlin
 dependencies {
     // === 既存の依存関係 ===
-    implementation("io.ktor:ktor-server-core-jvm")
-    implementation("io.ktor:ktor-server-netty-jvm")
-    implementation("io.ktor:ktor-server-content-negotiation-jvm")
+    implementation("io.ktor:server-core-jvm")
+    implementation("io.ktor:server-netty-jvm")
+    implementation("io.ktor:server-content-negotiation-jvm")
     implementation("io.ktor:ktor-serialization-kotlinx-json-jvm")
     implementation("ch.qos.logback:logback-classic:1.4.14")
     
@@ -65,7 +65,7 @@ dependencies {
     implementation("com.zaxxer:HikariCP:5.1.0")
     
     // Testing
-    testImplementation("io.ktor:ktor-server-tests-jvm")
+    testImplementation("io.ktor:server-tests-jvm")
     testImplementation("org.jetbrains.kotlin:kotlin-test-junit:1.9.22")
     testImplementation("io.insert-koin:koin-test:3.5.3")
 }
@@ -75,7 +75,7 @@ dependencies {
 
 ### Step 2: 環境変数設定ファイル作成
 
-#### `ktor-server/.env.example`
+#### `server/.env.example`
 
 ```bash
 # Supabase Database接続情報
@@ -84,7 +84,7 @@ DATABASE_USER=postgres
 DATABASE_PASSWORD=your-password
 ```
 
-#### `ktor-server/.env`（実際の値を設定、Gitにはコミットしない）
+#### `server/.env`（実際の値を設定、Gitにはコミットしない）
 
 ```bash
 DATABASE_URL=jdbc:postgresql://db.xxxx.supabase.co:5432/postgres
@@ -99,7 +99,7 @@ DATABASE_PASSWORD=実際のパスワード
 
 ### Step 3: データベース設定クラス
 
-#### `ktor-server/src/main/kotlin/com/cleaning/database/DatabaseFactory.kt`
+#### `server/src/main/kotlin/com/cleaning/database/DatabaseFactory.kt`
 
 ```kotlin
 package com.cleaning.database
@@ -146,7 +146,7 @@ object DatabaseFactory {
 
 ### Step 4: テーブル定義
 
-#### `ktor-server/src/main/kotlin/com/cleaning/database/tables/ReportsTable.kt`
+#### `server/src/main/kotlin/com/cleaning/database/tables/ReportsTable.kt`
 
 ```kotlin
 package com.cleaning.database.tables
@@ -186,7 +186,7 @@ object ReportsTable : Table("reports") {
 
 ### Step 5: ドメインモデル
 
-#### `ktor-server/src/main/kotlin/com/cleaning/models/Report.kt`
+#### `server/src/main/kotlin/com/cleaning/models/Report.kt`
 
 ```kotlin
 package com.cleaning.models
@@ -274,7 +274,7 @@ fun Report.toDto(): ReportDto = ReportDto(
 
 ### Step 6: リポジトリ実装
 
-#### `ktor-server/src/main/kotlin/com/cleaning/repositories/ReportRepository.kt`
+#### `server/src/main/kotlin/com/cleaning/repositories/ReportRepository.kt`
 
 ```kotlin
 package com.cleaning.repositories
@@ -386,7 +386,7 @@ class ReportRepositoryImpl : ReportRepository {
 
 ### Step 7: Koinモジュール定義
 
-#### `ktor-server/src/main/kotlin/com/cleaning/di/AppModule.kt`
+#### `server/src/main/kotlin/com/cleaning/di/AppModule.kt`
 
 ```kotlin
 package com.cleaning.di
@@ -414,7 +414,7 @@ val appModule = module {
 
 ### Step 8: Koinプラグイン設定
 
-#### `ktor-server/src/main/kotlin/com/cleaning/plugins/Koin.kt`
+#### `server/src/main/kotlin/com/cleaning/plugins/Koin.kt`
 
 ```kotlin
 package com.cleaning.plugins
@@ -436,7 +436,7 @@ fun Application.configureKoin() {
 
 ### Step 9: APIルート実装
 
-#### `ktor-server/src/main/kotlin/com/cleaning/routes/ReportRoutes.kt`
+#### `server/src/main/kotlin/com/cleaning/routes/ReportRoutes.kt`
 
 ```kotlin
 package com.cleaning.routes
@@ -562,7 +562,7 @@ fun Route.reportRoutes() {
 
 ### Step 10: Application.ktを更新
 
-#### `ktor-server/src/main/kotlin/com/cleaning/Application.kt`
+#### `server/src/main/kotlin/com/cleaning/Application.kt`
 
 ```kotlin
 package com.cleaning
@@ -591,7 +591,7 @@ fun main() {
 
 ### Step 11: Routingを更新
 
-#### `ktor-server/src/main/kotlin/com/cleaning/plugins/Routing.kt`
+#### `server/src/main/kotlin/com/cleaning/plugins/Routing.kt`
 
 ```kotlin
 package com.cleaning.plugins
@@ -614,7 +614,7 @@ fun Application.configureRouting() {
 ### Step 12: ローカルで動作確認
 
 ```bash
-cd /Users/kuwa/Develop/studio/cleaning-report/ktor-server
+cd /Users/kuwa/Develop/studio/cleaning-report/server
 
 # 環境変数を読み込んで起動
 export $(cat .env | xargs) && ./gradlew run
@@ -657,7 +657,7 @@ curl -X DELETE http://localhost:8080/api/v1/reports/{id}
 ## ディレクトリ構成（Phase 3.2完了後）
 
 ```
-ktor-server/
+server/
 ├── src/main/kotlin/com/cleaning/
 │   ├── Application.kt
 │   ├── di/

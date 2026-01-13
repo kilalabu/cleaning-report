@@ -70,7 +70,7 @@ version: v2
 plugins:
   # Kotlin用
   - remote: buf.build/connectrpc/kotlin
-    out: ktor-server/src/main/kotlin
+    out: server/src/main/kotlin
     opt:
       - generateCallbackMethods=true
       - generateCoroutineMethods=true
@@ -228,7 +228,7 @@ buf generate
 ```
 
 生成されるファイル:
-- `ktor-server/src/main/kotlin/cleaning/v1/` - Kotlinコード
+- `server/src/main/kotlin/cleaning/v1/` - Kotlinコード
 - `cleaning_report_app/lib/generated/cleaning/v1/` - Dartコード
 
 ---
@@ -252,7 +252,7 @@ dependencies {
 
 ---
 
-#### `ktor-server/src/main/kotlin/com/cleaning/rpc/ReportServiceImpl.kt`
+#### `server/src/main/kotlin/com/cleaning/rpc/ReportServiceImpl.kt`
 
 ```kotlin
 package com.cleaning.rpc
@@ -425,7 +425,7 @@ class ReportServiceImpl(
 
 ### Step 5: Ktor Connectプラグイン設定
 
-#### `ktor-server/src/main/kotlin/com/cleaning/plugins/Connect.kt`
+#### `server/src/main/kotlin/com/cleaning/plugins/Connect.kt`
 
 ```kotlin
 package com.cleaning.plugins
@@ -627,7 +627,7 @@ cleaning-report/
 │           └── pdf.proto         # NEW
 ├── buf.yaml                      # NEW
 ├── buf.gen.yaml                  # NEW
-├── ktor-server/
+├── server/
 │   └── src/main/kotlin/
 │       └── com/cleaning/
 │           └── rpc/

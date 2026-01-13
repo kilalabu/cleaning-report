@@ -383,7 +383,7 @@ chmod +x run_ktor.sh
 #### 1. Ktorサーバー起動（別ターミナル）
 
 ```bash
-cd /Users/kuwa/Develop/studio/cleaning-report/ktor-server
+cd /Users/kuwa/Develop/studio/cleaning-report/server
 export $(cat .env | xargs) && ./gradlew run
 ```
 
@@ -408,7 +408,7 @@ cd /Users/kuwa/Develop/studio/cleaning-report/cleaning_report_app
 
 FlutterアプリからKtor APIにアクセスする際、CORSエラーが発生する場合があります。
 
-#### `ktor-server/src/main/kotlin/com/cleaning/plugins/Cors.kt`
+#### `server/src/main/kotlin/com/cleaning/plugins/Cors.kt`
 
 ```kotlin
 package com.cleaning.plugins
