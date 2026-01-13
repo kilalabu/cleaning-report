@@ -15,7 +15,7 @@ T _$identity<T>(T value) => value;
 /// @nodoc
 mixin _$CleaningItem {
   int get id;
-  String get type;
+  CleaningReportType get type;
   int get duration;
   String? get note;
 
@@ -54,7 +54,7 @@ abstract mixin class $CleaningItemCopyWith<$Res> {
           CleaningItem value, $Res Function(CleaningItem) _then) =
       _$CleaningItemCopyWithImpl;
   @useResult
-  $Res call({int id, String type, int duration, String? note});
+  $Res call({int id, CleaningReportType type, int duration, String? note});
 }
 
 /// @nodoc
@@ -82,7 +82,7 @@ class _$CleaningItemCopyWithImpl<$Res> implements $CleaningItemCopyWith<$Res> {
       type: null == type
           ? _self.type
           : type // ignore: cast_nullable_to_non_nullable
-              as String,
+              as CleaningReportType,
       duration: null == duration
           ? _self.duration
           : duration // ignore: cast_nullable_to_non_nullable
@@ -188,7 +188,8 @@ extension CleaningItemPatterns on CleaningItem {
 
   @optionalTypeArgs
   TResult maybeWhen<TResult extends Object?>(
-    TResult Function(int id, String type, int duration, String? note)?
+    TResult Function(
+            int id, CleaningReportType type, int duration, String? note)?
         $default, {
     required TResult orElse(),
   }) {
@@ -216,7 +217,9 @@ extension CleaningItemPatterns on CleaningItem {
 
   @optionalTypeArgs
   TResult when<TResult extends Object?>(
-    TResult Function(int id, String type, int duration, String? note) $default,
+    TResult Function(
+            int id, CleaningReportType type, int duration, String? note)
+        $default,
   ) {
     final _that = this;
     switch (_that) {
@@ -241,7 +244,8 @@ extension CleaningItemPatterns on CleaningItem {
 
   @optionalTypeArgs
   TResult? whenOrNull<TResult extends Object?>(
-    TResult? Function(int id, String type, int duration, String? note)?
+    TResult? Function(
+            int id, CleaningReportType type, int duration, String? note)?
         $default,
   ) {
     final _that = this;
@@ -258,13 +262,16 @@ extension CleaningItemPatterns on CleaningItem {
 
 class _CleaningItem implements CleaningItem {
   const _CleaningItem(
-      {required this.id, this.type = 'regular', this.duration = 15, this.note});
+      {required this.id,
+      this.type = CleaningReportType.regular,
+      this.duration = 15,
+      this.note});
 
   @override
   final int id;
   @override
   @JsonKey()
-  final String type;
+  final CleaningReportType type;
   @override
   @JsonKey()
   final int duration;
@@ -308,7 +315,7 @@ abstract mixin class _$CleaningItemCopyWith<$Res>
       __$CleaningItemCopyWithImpl;
   @override
   @useResult
-  $Res call({int id, String type, int duration, String? note});
+  $Res call({int id, CleaningReportType type, int duration, String? note});
 }
 
 /// @nodoc
@@ -337,7 +344,7 @@ class __$CleaningItemCopyWithImpl<$Res>
       type: null == type
           ? _self.type
           : type // ignore: cast_nullable_to_non_nullable
-              as String,
+              as CleaningReportType,
       duration: null == duration
           ? _self.duration
           : duration // ignore: cast_nullable_to_non_nullable

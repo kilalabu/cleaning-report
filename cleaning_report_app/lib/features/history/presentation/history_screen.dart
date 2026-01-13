@@ -3,6 +3,7 @@ import 'package:hooks_riverpod/hooks_riverpod.dart';
 
 import '../../../core/theme/app_theme.dart';
 import '../../../core/widgets/confirm_dialog.dart';
+import '../../../domain/entities/cleaning_report_type.dart';
 import '../../../domain/entities/report.dart';
 import '../../report/presentation/cleaning_report_screen.dart';
 import '../../report/presentation/expense_report_screen.dart';
@@ -310,7 +311,7 @@ class HistoryScreen extends ConsumerWidget {
       'id': report.id,
       'date': report.date.toIso8601String().split('T')[0],
       'type': report.type.value,
-      'item': report.item,
+      'item': report.cleaningType?.displayName ?? report.expenseItem, // 表示用
       'unit_price': report.unitPrice,
       'duration': report.duration,
       'amount': report.amount,
@@ -383,6 +384,10 @@ class _HistoryItemTile extends StatelessWidget {
     final dateStr =
         '${report.date.year}-${report.date.month.toString().padLeft(2, '0')}-${report.date.day.toString().padLeft(2, '0')}';
 
+    final itemName = isWork
+        ? (report.cleaningType?.displayName ?? '通常清掃')
+        : (report.expenseItem ?? '不明な経費');
+
     return Container(
       decoration: AppTheme.cardDecoration,
       padding: const EdgeInsets.all(12),
@@ -406,12 +411,12 @@ class _HistoryItemTile extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  report.item,
+                  itemName,
                   style: TextStyle(
                     fontWeight: FontWeight.w600,
-                    color: report.item == '追加業務'
+                    color: report.cleaningType == CleaningReportType.extra
                         ? AppTheme.accent
-                        : report.item == '緊急対応'
+                        : report.cleaningType == CleaningReportType.emergency
                             ? AppTheme.destructive
                             : null,
                   ),

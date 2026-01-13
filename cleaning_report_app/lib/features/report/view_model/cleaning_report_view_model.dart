@@ -4,6 +4,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../../core/di/providers.dart';
 import '../../../core/utils/dialog_utils.dart';
+import '../../../domain/entities/cleaning_report_type.dart';
 import '../../../domain/entities/report.dart';
 import '../../history/view_model/history_view_model.dart';
 import '../domain/cleaning_item.dart';
@@ -54,7 +55,8 @@ class CleaningReportViewModel extends AutoDisposeNotifier<CleaningReportState> {
   void addItem() {
     if (state.items.length >= 2) return;
 
-    final newItem = CleaningItem(id: state.idCounter, type: 'extra');
+    final newItem =
+        CleaningItem(id: state.idCounter, type: CleaningReportType.extra);
     state = state.copyWith(
       items: [...state.items, newItem],
       idCounter: state.idCounter + 1,
@@ -80,7 +82,8 @@ class CleaningReportViewModel extends AutoDisposeNotifier<CleaningReportState> {
     // バリデーション
     for (int i = 0; i < state.items.length; i++) {
       final item = state.items[i];
-      if (item.type != 'regular' && (item.note == null || item.note!.isEmpty)) {
+      if (item.type != CleaningReportType.regular &&
+          (item.note == null || item.note!.isEmpty)) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('${i + 1}番目の業務: 備考を入力してください')),
         );
@@ -103,10 +106,10 @@ class CleaningReportViewModel extends AutoDisposeNotifier<CleaningReportState> {
           userId: userId,
           date: date,
           type: ReportType.work,
-          item: calculatedData['item'] as String,
+          cleaningType: calculatedData['cleaningType'] as CleaningReportType?,
+          amount: calculatedData['amount'] as int,
           unitPrice: calculatedData['unitPrice'] as int?,
           duration: calculatedData['duration'] as int?,
-          amount: calculatedData['amount'] as int,
           note: calculatedData['note'] as String?,
           month: month,
           createdAt: DateTime.now(),
@@ -163,11 +166,9 @@ class CleaningReportViewModel extends AutoDisposeNotifier<CleaningReportState> {
     }
   }
 
-  String _mapItemNameToType(String? itemName) {
-    if (itemName == '通常清掃') return 'regular';
-    if (itemName == '追加業務') return 'extra';
-    if (itemName == '緊急対応') return 'emergency';
-    return 'regular';
+  CleaningReportType _mapItemNameToType(String? itemName) {
+    if (itemName == null) return CleaningReportType.regular;
+    return CleaningReportType.fromLabel(itemName) ?? CleaningReportType.regular;
   }
 }
 

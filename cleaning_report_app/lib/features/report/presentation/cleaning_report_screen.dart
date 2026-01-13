@@ -2,7 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
 
 import '../../../core/theme/app_theme.dart';
+import '../../../domain/entities/cleaning_report_type.dart';
 import '../domain/cleaning_item.dart';
+
 import '../view_model/cleaning_report_view_model.dart';
 
 class CleaningReportScreen extends StatelessWidget {
@@ -281,18 +283,21 @@ class _CleaningItemCard extends StatelessWidget {
               decoration: AppTheme.inputDecoration,
               padding: const EdgeInsets.symmetric(horizontal: 12),
               child: DropdownButtonHideUnderline(
-                child: DropdownButton<String>(
+                child: DropdownButton<CleaningReportType>(
                   value: item.type,
                   isExpanded: true,
                   icon:
                       Icon(Icons.expand_more, color: AppTheme.mutedForeground),
                   items: const [
                     DropdownMenuItem(
-                        value: 'regular', child: Text('通常清掃 (1,100円)')),
+                        value: CleaningReportType.regular,
+                        child: Text('通常清掃 (1,100円)')),
                     DropdownMenuItem(
-                        value: 'extra', child: Text('追加業務 (時給1,800円)')),
+                        value: CleaningReportType.extra,
+                        child: Text('追加業務 (時給1,800円)')),
                     DropdownMenuItem(
-                        value: 'emergency', child: Text('緊急対応 (時給2,000円)')),
+                        value: CleaningReportType.emergency,
+                        child: Text('緊急対応 (時給2,000円)')),
                   ],
                   onChanged: (v) {
                     if (v != null) onChanged(item.copyWith(type: v));
@@ -302,7 +307,7 @@ class _CleaningItemCard extends StatelessWidget {
             ),
 
             // 作業時間（通常清掃以外）
-            if (item.type != 'regular') ...[
+            if (item.type != CleaningReportType.regular) ...[
               const SizedBox(height: 12),
               Text(
                 '作業時間',
@@ -340,7 +345,7 @@ class _CleaningItemCard extends StatelessWidget {
             ],
 
             // 備考（通常清掃以外）
-            if (item.type != 'regular') ...[
+            if (item.type != CleaningReportType.regular) ...[
               const SizedBox(height: 12),
               Text(
                 '備考',

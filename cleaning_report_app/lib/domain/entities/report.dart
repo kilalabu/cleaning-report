@@ -1,3 +1,5 @@
+import 'cleaning_report_type.dart';
+
 /// Report Entity
 ///
 /// 清掃報告・経費報告のデータモデル。
@@ -8,7 +10,8 @@ class Report {
   final String userId;
   final DateTime date;
   final ReportType type;
-  final String item;
+  final CleaningReportType? cleaningType; // 清掃業務の場合にセット
+  final String? expenseItem; // 立替経費の場合にセット
   final int? unitPrice;
   final int? duration; // 分単位
   final int amount;
@@ -22,7 +25,8 @@ class Report {
     required this.userId,
     required this.date,
     required this.type,
-    required this.item,
+    this.cleaningType,
+    this.expenseItem,
     this.unitPrice,
     this.duration,
     required this.amount,
@@ -37,7 +41,8 @@ class Report {
     required String userId,
     required DateTime date,
     required ReportType type,
-    required String item,
+    CleaningReportType? cleaningType,
+    String? expenseItem,
     int? unitPrice,
     int? duration,
     required int amount,
@@ -49,7 +54,8 @@ class Report {
       userId: userId,
       date: date,
       type: type,
-      item: item,
+      cleaningType: cleaningType,
+      expenseItem: expenseItem,
       unitPrice: unitPrice,
       duration: duration,
       amount: amount,
@@ -65,7 +71,8 @@ class Report {
     String? userId,
     DateTime? date,
     ReportType? type,
-    String? item,
+    CleaningReportType? cleaningType,
+    String? expenseItem,
     int? unitPrice,
     int? duration,
     int? amount,
@@ -79,7 +86,8 @@ class Report {
       userId: userId ?? this.userId,
       date: date ?? this.date,
       type: type ?? this.type,
-      item: item ?? this.item,
+      cleaningType: cleaningType ?? this.cleaningType,
+      expenseItem: expenseItem ?? this.expenseItem,
       unitPrice: unitPrice ?? this.unitPrice,
       duration: duration ?? this.duration,
       amount: amount ?? this.amount,
@@ -92,7 +100,7 @@ class Report {
 
   @override
   String toString() {
-    return 'Report(id: $id, date: $date, type: $type, item: $item, amount: $amount)';
+    return 'Report(id: $id, date: $date, type: $type, cleaningType: $cleaningType, expenseItem: $expenseItem, amount: $amount)';
   }
 
   @override

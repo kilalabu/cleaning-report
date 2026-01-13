@@ -1,5 +1,6 @@
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import '../../domain/entities/cleaning_report_type.dart';
 import '../../domain/entities/report.dart';
 import '../../domain/repositories/report_repository.dart';
 
@@ -63,12 +64,26 @@ class SupabaseReportRepository implements ReportRepository {
 
   /// JSONからReportエンティティに変換
   Report _fromJson(Map<String, dynamic> json) {
+    final type = ReportTypeExtension.fromString(json['type'] as String);
+    final itemStr = json['item'] as String;
+
+    CleaningReportType? cleaningType;
+    String? expenseItem;
+
+    if (type == ReportType.work) {
+      cleaningType = CleaningReportType.fromLabel(itemStr) ??
+          CleaningReportType.regular; // フォールバック: 通常清掃
+    } else {
+      expenseItem = itemStr;
+    }
+
     return Report(
       id: json['id'] as String,
       userId: json['user_id'] as String,
       date: DateTime.parse(json['date'] as String),
-      type: ReportTypeExtension.fromString(json['type'] as String),
-      item: json['item'] as String,
+      type: type,
+      cleaningType: cleaningType,
+      expenseItem: expenseItem,
       unitPrice: json['unit_price'] as int?,
       duration: json['duration'] as int?,
       amount: json['amount'] as int,
@@ -83,12 +98,19 @@ class SupabaseReportRepository implements ReportRepository {
 
   /// ReportエンティティからJSONに変換
   Map<String, dynamic> _toJson(Report report) {
+    String itemStr;
+    if (report.type == ReportType.work) {
+      itemStr = report.cleaningType?.displayName ?? '通常清掃';
+    } else {
+      itemStr = report.expenseItem ?? '';
+    }
+
     return {
       'id': report.id,
       'user_id': report.userId,
       'date': report.date.toIso8601String().split('T')[0], // DATE型用
       'type': report.type.value,
-      'item': report.item,
+      'item': itemStr,
       'unit_price': report.unitPrice,
       'duration': report.duration,
       'amount': report.amount,

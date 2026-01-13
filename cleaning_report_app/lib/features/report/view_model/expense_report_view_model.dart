@@ -90,7 +90,7 @@ class ExpenseReportViewModel extends AutoDisposeNotifier<ExpenseReportState> {
         userId: userId,
         date: date,
         type: ReportType.expense,
-        item: state.item,
+        expenseItem: state.item,
         unitPrice: null,
         duration: null,
         amount: int.parse(state.amount),
