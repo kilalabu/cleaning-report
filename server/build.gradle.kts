@@ -21,8 +21,24 @@ dependencies {
     implementation("io.ktor:ktor-server-netty")
     implementation("ch.qos.logback:logback-classic:$logback_version")
     implementation("io.ktor:ktor-server-config-yaml")
+
+    // Koin (DI)
+    implementation("io.insert-koin:koin-ktor:4.1.1")
+    implementation("io.insert-koin:koin-logger-slf4j:4.1.1")
+
+    // Database
+    implementation("org.jetbrains.exposed:exposed-core:0.46.0")
+    implementation("org.jetbrains.exposed:exposed-dao:0.46.0")
+    implementation("org.jetbrains.exposed:exposed-jdbc:0.46.0")
+    implementation("org.jetbrains.exposed:exposed-java-time:0.46.0")
+    implementation("org.postgresql:postgresql:42.7.1")
+    implementation("com.zaxxer:HikariCP:5.1.0")
+
+    // Testing
     testImplementation("io.ktor:ktor-server-test-host")
-    testImplementation("org.jetbrains.kotlin:kotlin-test-junit:$kotlin_version")
+    testImplementation("io.ktor:server-tests-jvm")
+    testImplementation("org.jetbrains.kotlin:kotlin-test-junit:${kotlin_version}")
+    testImplementation("io.insert-koin:koin-test:3.5.3")
 }
 
 // ───────────────────────────────────────────────────────────────
