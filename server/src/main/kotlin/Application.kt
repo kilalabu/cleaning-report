@@ -2,6 +2,7 @@ package com.cleaning
 
 import com.cleaning.database.DatabaseFactory
 import com.cleaning.plugins.configureAuthentication
+import com.cleaning.plugins.configureCors
 import com.cleaning.plugins.configureKoin
 import com.cleaning.plugins.configureRouting
 import io.ktor.server.application.*
@@ -21,6 +22,7 @@ fun main() {
 
 fun Application.module() {
     DatabaseFactory.init() // EngineMain から起動された場合のためにここでも呼ぶ
+    configureCors()
     configureKoin()
     configureAuthentication()
     configureSerialization()
