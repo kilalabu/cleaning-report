@@ -1,40 +1,27 @@
+import 'package:freezed_annotation/freezed_annotation.dart';
 import 'cleaning_report_type.dart';
 
-/// Report Entity
-///
-/// 清掃報告・経費報告のデータモデル。
-/// Data Layer の実装詳細に依存しない純粋なDartクラス。
+part 'report.freezed.dart';
 
-class Report {
-  final String id;
-  final String userId;
-  final DateTime date;
-  final ReportType type;
-  final CleaningReportType? cleaningType; // 清掃業務の場合にセット
-  final String? expenseItem; // 立替経費の場合にセット
-  final int? unitPrice;
-  final int? duration; // 分単位
-  final int amount;
-  final String? note;
-  final String month; // 'yyyy-MM' 形式
-  final DateTime createdAt;
-  final DateTime? updatedAt;
+@freezed
+abstract class Report with _$Report {
+  const factory Report({
+    required String id,
+    required String userId,
+    required DateTime date,
+    required ReportType type,
+    CleaningReportType? cleaningType, // 清掃業務の場合にセット
+    String? expenseItem, // 立替経費の場合にセット
+    int? unitPrice,
+    int? duration, // 分単位
+    required int amount,
+    String? note,
+    required String month, // 'yyyy-MM' 形式
+    required DateTime createdAt,
+    DateTime? updatedAt,
+  }) = _Report;
 
-  const Report({
-    required this.id,
-    required this.userId,
-    required this.date,
-    required this.type,
-    this.cleaningType,
-    this.expenseItem,
-    this.unitPrice,
-    this.duration,
-    required this.amount,
-    this.note,
-    required this.month,
-    required this.createdAt,
-    this.updatedAt,
-  });
+  const Report._();
 
   /// 新規レポート作成用ファクトリ（IDとタイムスタンプは後で付与）
   factory Report.create({
@@ -64,53 +51,6 @@ class Report {
       createdAt: DateTime.now(),
     );
   }
-
-  /// コピーして一部フィールドを変更
-  Report copyWith({
-    String? id,
-    String? userId,
-    DateTime? date,
-    ReportType? type,
-    CleaningReportType? cleaningType,
-    String? expenseItem,
-    int? unitPrice,
-    int? duration,
-    int? amount,
-    String? note,
-    String? month,
-    DateTime? createdAt,
-    DateTime? updatedAt,
-  }) {
-    return Report(
-      id: id ?? this.id,
-      userId: userId ?? this.userId,
-      date: date ?? this.date,
-      type: type ?? this.type,
-      cleaningType: cleaningType ?? this.cleaningType,
-      expenseItem: expenseItem ?? this.expenseItem,
-      unitPrice: unitPrice ?? this.unitPrice,
-      duration: duration ?? this.duration,
-      amount: amount ?? this.amount,
-      note: note ?? this.note,
-      month: month ?? this.month,
-      createdAt: createdAt ?? this.createdAt,
-      updatedAt: updatedAt ?? this.updatedAt,
-    );
-  }
-
-  @override
-  String toString() {
-    return 'Report(id: $id, date: $date, type: $type, cleaningType: $cleaningType, expenseItem: $expenseItem, amount: $amount)';
-  }
-
-  @override
-  bool operator ==(Object other) {
-    if (identical(this, other)) return true;
-    return other is Report && other.id == id;
-  }
-
-  @override
-  int get hashCode => id.hashCode;
 }
 
 /// レポートの種類
