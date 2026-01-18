@@ -34,6 +34,12 @@ dependencies {
     implementation("org.postgresql:postgresql:42.7.1")
     implementation("com.zaxxer:HikariCP:5.1.0")
 
+    // JWT認証
+    implementation("io.ktor:ktor-server-auth")
+    implementation("io.ktor:ktor-server-auth-jwt")
+    // JWKsから公開鍵を取得するためのライブラリ
+    implementation("com.auth0:jwks-rsa:0.22.1")
+
     // Testing
     testImplementation("io.ktor:ktor-server-test-host")
     testImplementation("io.ktor:server-tests-jvm")
