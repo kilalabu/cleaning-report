@@ -1,661 +1,303 @@
 # Phase 3.2: DB接続 & CRUD + DI導入 理解度チェックリスト
 
-Phase 3.2（データベース接続、CRUD実装、DI導入）に関する本質的な理解を確認するための問題集です。
+Phase 3.2（データベース接続、CRUD実装、DI導入）に関する**本質的な概念と設計意図**を理解するための問題集です。
+コードの細かい文法よりも、「なぜそのライブラリを使うのか？」「なぜその設計にするのか？」といったアーキテクチャの理解を問います。
 
 ---
 
-## 📚 セクション1: 基礎理解（4択問題）
+## 📚 セクション1: インフラ・データベース接続 (HikariCP)
 
-### Q1. トランザクション（transaction）の役割として正しいのはどれ？
+### Q1. サーバーサイド開発において「コネクションプール（HikariCPなど）」を利用する最大の目的は？
 
-```kotlin
-transaction {
-    val user = UsersTable.insert { ... }
-    val report = ReportsTable.insert { ... }
-}
-```
-
-- A) 処理を高速化する
-- B) 複数のDB操作を「まとめて成功/失敗」させる（一部だけ成功は防ぐ）
-- C) 並列処理を可能にする
-- D) データベース接続を確立する
+- A) データベースのパスワードを暗号化してセキュリティを高めるため
+- B) データベースへの接続（ハンドシェイク）確立にかかる高いコスト（時間・負荷）を削減し、スループットを向上させるため
+- C) 複数のデータベース（Postgres, MySQLなど）を同時に扱うため
+- D) データベースの容量不足を防ぐために、自動的に不要なデータを削除するため
 
 <details>
 <summary>答えを見る</summary>
 
 **正解: B**
 
-トランザクションは「複数のDB操作をまとめて成功/失敗させる」仕組みです。
-
-```
-transaction {
-    ① 在庫を減らす
-    ② 注文レコードを作成
-    ③ 決済処理
-}
-```
-
-もし③で失敗したら、①と②も自動的に取り消される（ロールバック）。
-これにより「在庫だけ減って代金がない」などの不整合を防ぎます。
-
-**Android（Room）での類似概念:**
-```kotlin
-@Transaction
-suspend fun transferMoney(from: Account, to: Account, amount: Int) {
-    // すべて成功 or すべて失敗
-}
-```
+**解説:**
+データベースへの接続確立（TCPハンドシェイク、認証など）は、SQL実行そのものよりも時間がかかる重い処理（約100ms〜）です。
+サーバーは多数のリクエストを同時にさばく必要があるため、リクエストのたびに接続→切断を繰り返すとパフォーマンスが劇的に低下します。
+**コネクションプール**は、あらかじめ確立した接続を「プール（溜め池）」に保持し、それを使い回すことでこのオーバーヘッドを解消します。
 
 </details>
 
 ---
 
-### Q2. コネクションプール（Connection Pool）が必要な理由は？
+### Q2. Supabase（特に無料枠）を利用する場合、HikariCPの `maximumPoolSize`（最大接続数）の設定で注意すべき点は？
 
-```kotlin
-maximumPoolSize = 3
-minimumIdle = 1
-```
-
-- A) データベースのバックアップを保持するため
-- B) サーバーは同時に多数のリクエストを処理するため、接続を使い回して高速化
-- C) データベースの容量を拡張するため
-- D) SSL接続を暗号化するため
-
-<details>
-<summary>答えを見る</summary>
-
-**正解: B**
-
-**Android（1ユーザー）vs サーバー（多数のユーザー）:**
-
-```
-Androidアプリ:
-  ユーザーの操作 → DB → 結果表示
-  （同時に1つの操作しか起きない）
-  → SQLite接続は1つで十分
-
-サーバー:
-  ユーザーA → [接続1] → DB
-  ユーザーB → [接続2] → DB
-  ユーザーC → [接続3] → DB
-  → 同時に複数の接続が必要！
-```
-
-毎回接続を作ると遅い（約100ms）ため、あらかじめ接続を作っておき使い回すのがコネクションプールです。
-
-**Android（OkHttp）での類似概念:**
-```kotlin
-OkHttpClient.Builder()
-    .connectionPool(ConnectionPool(5, 5, TimeUnit.MINUTES))
-```
-
-</details>
-
----
-
-### Q3. DTO（Data Transfer Object）とEntity（Domain Model）を分ける理由として正しくないのはどれ？
-
-- A) セキュリティ（パスワードなど返してはいけない情報を除外）
-- B) 型安全性（内部ではUUID/LocalDateを使い、ミスを防ぐ）
-- C) パフォーマンスの向上
-- D) クライアントに返す形式を自由に変更可能
+- A) ユーザー数が増えることを見越して、最初から `100` 以上に設定しておくのがベストプラクティスである。
+- B) `0` に設定すると、自動的に最適な数が割り当てられる。
+- C) データベース側の接続数制限（Connection Limit）を超えないように、少なめ（例: 3〜5）に設定する必要がある。
+- D) この設定はパフォーマンスに関係しないため、デフォルトのままで良い。
 
 <details>
 <summary>答えを見る</summary>
 
 **正解: C**
 
-DTO/Entity分離は**パフォーマンス向上が主目的ではありません**。
-
-```
-Request DTO  →  Domain Entity  →  Response DTO
-  (入力用)        (内部処理用)      (出力用)
-
-CreateReportRequest  →  Report  →  ReportDto
-・JSONから変換          ・UUID型       ・String型（ISO）
-・idなし                ・LocalDate型   ・機密情報除外
-```
-
-**分ける理由:**
-- ✅ セキュリティ: パスワード等を含めない
-- ✅ 型安全性: 内部でUUID/LocalDateを使う
-- ✅ 柔軟性: クライアント向け形式を変更しても内部に影響なし
-
-**Android的に言うと:**
-- UIモデル（画面表示用）とドメインモデル（ビジネスロジック用）の分離
+**解説:**
+Supabaseの無料枠（Micro compute）などは、データベースが受け入れられる同時接続数に厳しい制限があります（数十程度）。
+これを超えて接続しようとすると、アプリが `FATAL: remaining connection slots are reserved...` といったエラーでクラッシュします。
+サーバー（Cloud Runなど）がオートスケールしてインスタンスが増えることも考慮し、1インスタンスあたりの接続数は少なめに設定するのが安全です。
 
 </details>
 
 ---
 
-### Q4. HTTPステータスコードの使い分けとして正しいのはどれ？
+### Q3. クラウド上のDB（Supabaseなど）に接続する際、`sslmode = "require"` を設定する理由は？
 
-- A) POST成功時は 200 OK を返す
-- B) DELETE成功時は 204 No Content を返す（返す内容がない）
-- C) リソースが見つからない時は 500 Internal Server Error を返す
-- D) 認証エラー時は 400 Bad Request を返す
+- A) データベースのパスワードを短くするため
+- B) 通信経路を暗号化し、インターネット上での盗聴や改ざん（中間者攻撃）を防ぐため
+- C) データベースの検索速度を向上させるため
+- D) 接続プールを使わずに直接接続するため
 
 <details>
 <summary>答えを見る</summary>
 
 **正解: B**
 
-| コード | 意味 | 使用例 |
-|:---|:---|:---|
-| 200 OK | 成功（データを返す） | GET成功時 |
-| 201 Created | 作成成功 | **POST成功時** |
-| 204 No Content | 成功（返す内容なし） | **DELETE成功時** |
-| 400 Bad Request | クライアントの入力が不正 | 必須パラメータなし |
-| 401 Unauthorized | 認証されていない | ログインしてない |
-| 404 Not Found | リソースが存在しない | ID該当なし |
-| 500 Internal Error | サーバー側のバグ | catch漏れ等 |
-
-**Android（Retrofit）での経験:**
-```kotlin
-when (response.code()) {
-    200 -> // データ取得成功
-    201 -> // 作成成功
-    401 -> // 再ログイン誘導
-    404 -> // 「データが見つかりません」表示
-}
-```
+**解説:**
+ローカル開発（`localhost`）とは異なり、クラウドDBへの接続はインターネットを経由します。
+`sslmode=require`（またはそれ以上）を設定しないと、SQLの内容やパスワードが平文で流れる可能性があり、セキュリティ上の重大なリスクとなります。
 
 </details>
 
 ---
 
-## 📚 セクション2: 実装パターン選択問題
+## 📚 セクション2: ORMとデータアクセス (Exposed)
 
-### Q5. Exposed DSLでのクエリ実装として正しいのはどれ？（月ごとのレポート取得）
+### Q4. Exposedのような「型安全なDSL（ドメイン特化言語）」を持つORMを使用するメリットとして、**正しくない**ものはどれ？
 
-**A)**
+- A) コンパイル時にSQLの構文ミスや型不整合（文字列カラムに数値を入れようとする等）を検知できる。
+- B) IDEの補完機能が効くため、カラム名などを覚えなくても開発しやすい。
+- C) 生のSQLを書くよりも実行速度が劇的に速くなる。
+- D) リファクタリング（カラム名の変更など）をした際、修正が必要な箇所がコンパイルエラーとして即座にわかる。
+
+<details>
+<summary>答えを見る</summary>
+
+**正解: C**
+
+**解説:**
+**ORMのメリットは「開発効率」と「保守性」**であり、実行速度ではありません。
+むしろ、KotlinのコードをSQLに変換するオーバーヘッドがあるため、理論上は最適化された生のSQLよりわずかに遅くなる可能性があります（通常は無視できるレベルですが）。
+A, B, D はExposed導入の主要なメリットです。
+
+</details>
+
+---
+
+### Q5. 以下のコード（アンチパターン）の問題点は何ですか？
+
 ```kotlin
-fun findByMonth(month: String, userId: UUID): List<Report> {
-    val results = ReportsTable.selectAll()
-    return results.filter { it.month == month && it.userId == userId }
-        .map { it.toReport() }
+// "2026-01" のレポートを取得したい
+val reports = transaction {
+    ReportsTable.selectAll() // ① 全件取得
+        .filter { it[ReportsTable.month] == "2026-01" } // ② メモリ上でフィルタ
+        .map { ... }
 }
 ```
 
-**B)**
-```kotlin
-fun findByMonth(month: String, userId: UUID): List<Report> = transaction {
-    ReportsTable
-        .selectAll()
-        .where { (ReportsTable.month eq month) and (ReportsTable.userId eq userId) }
-        .orderBy(ReportsTable.date, SortOrder.DESC)
-        .map { it.toReport() }
-}
-```
-
-**C)**
-```kotlin
-fun findByMonth(month: String, userId: UUID): List<Report> = transaction {
-    val sql = "SELECT * FROM reports WHERE month = ? AND user_id = ?"
-    ReportsTable.exec(sql, month, userId) { ... }
-}
-```
-
-**D)**
-```kotlin
-fun findByMonth(month: String, userId: UUID): List<Report> {
-    ReportsTable.select { month eq month }
-}
-```
+- A) `transaction` ブロックの中で実行しているため、デッドロックが発生する。
+- B) `selectAll()` でDB内の全データを取得・転送してからアプリ側で選別しているため、データ量が増えるとメモリ不足や極端な速度低下を招く。
+- C) `filter` 関数はKotlin標準ライブラリではないため、コンパイルエラーになる。
+- D) 特に問題はない。
 
 <details>
 <summary>答えを見る</summary>
 
 **正解: B**
 
+**解説:**
+これは **「全件取得のアンチパターン」** です。
+DBには「条件に合うデータだけを効率よく探す機能（インデックス）」があります。
+しかし、このコードでは `selectAll()` で**全てのデータ**をDBからアプリサーバーに転送させ、その後にアプリのメモリ上で `filter` しています。データが数万件になるとアプリがクラッシュする原因になります。
+
+**正しい実装:**
 ```kotlin
-transaction {  // ← トランザクション内で実行
-    ReportsTable
-        .selectAll()  // SELECT *
-        .where { (ReportsTable.month eq month) and (ReportsTable.userId eq userId) }
-        // ↑ WHERE month = ? AND user_id = ?
-        .orderBy(ReportsTable.date, SortOrder.DESC)
-        // ↑ ORDER BY date DESC
-        .map { it.toReport() }  // ResultRow → Report変換
-}
-```
-
-**間違いの解説:**
-- A: `transaction { }` がない、filterはメモリ上で実行（非効率）
-- C: Exposedでは型安全なDSLを使う（生SQLは極力避ける）
-- D: 構文エラー、`userId` の条件がない
-
-**Android（Room）との比較:**
-```kotlin
-// Room
-@Query("SELECT * FROM reports WHERE month = :month AND user_id = :userId ORDER BY date DESC")
-suspend fun findByMonth(month: String, userId: String): List<Report>
-
-// Exposed
-fun findByMonth(month: String, userId: UUID): List<Report> = transaction {
-    ReportsTable.selectAll()
-        .where { (ReportsTable.month eq month) and (ReportsTable.userId eq userId) }
-        .orderBy(ReportsTable.date, SortOrder.DESC)
-        .map { it.toReport() }
-}
+ReportsTable.select { ReportsTable.month eq "2026-01" } // WHERE句としてSQLが発行される
 ```
 
 </details>
 
 ---
 
-### Q6. Repositoryでのレコード作成実装として正しいのはどれ？
+### Q6. Exposedにおける `object ReportsTable : Table("reports")` の定義と `data class Report` の違いについて適切な説明は？
 
-**A)**
-```kotlin
-override fun create(report: Report): Report {
-    ReportsTable.insert {
-        it[id] = report.id
-        it[userId] = report.userId
-        // ...
-    }
-    return report
-}
-```
-
-**B)**
-```kotlin
-override fun create(report: Report): Report = transaction {
-    val newId = UUID.randomUUID()
-    val now = LocalDateTime.now()
-    
-    ReportsTable.insert {
-        it[id] = newId
-        it[userId] = report.userId
-        // ...
-        it[createdAt] = now
-    }
-    
-    report.copy(id = newId, createdAt = now, updatedAt = now)
-}
-```
-
-**C)**
-```kotlin
-override fun create(report: Report): Report = transaction {
-    ReportsTable.insert {
-        it[id] = null  // 自動生成
-        it[userId] = report.userId
-        // ...
-    }
-    return report
-}
-```
-
-**D)**
-```kotlin
-override fun create(report: Report): Report {
-    val sql = "INSERT INTO reports VALUES (?, ?, ...)"
-    ReportsTable.exec(sql, report.id, report.userId, ...)
-    return report
-}
-```
+- A) `ReportsTable` はDBのスキーマ（設計図）を表しシングルトンである。`Report` は実際のデータ1件分を表すインスタンスである。
+- B) `ReportsTable` は読み取り専用、`Report` は書き込み専用である。
+- C) どちらも同じものであり、好みの書き方を選べば良い。
+- D) `ReportsTable` はクライアントに返すデータ、`Report` はDBに保存するデータである。
 
 <details>
 <summary>答えを見る</summary>
 
-**正解: B**
+**正解: A**
 
-**サーバーサイドのベストプラクティス:**
-- ID（UUID）と時刻（createdAt）は**Repository内で**確定させる
-- `transaction { }` で囲む
-- 新しく作成された値を反映したオブジェクトを返す
-
-```kotlin
-transaction {
-    val newId = UUID.randomUUID()  // ← サーバー側で生成
-    val now = LocalDateTime.now()   // ← サーバー側で生成
-    
-    ReportsTable.insert {
-        it[id] = newId
-        it[createdAt] = now
-        // ...
-    }
-    
-    report.copy(id = newId, createdAt = now)  // ← 最新値を返す
-}
-```
-
-**なぜサーバー側で生成？**
-- クライアントからの値は信用できない（時刻のずれ、不正なID等）
-- 一貫性を保証できる
-- DBの制約（UNIQUE等）を確実に守れる
+**解説:**
+Exposedではテーブル定義を `object`（シングルトン）として定義し、カラムの型や制約を記述します。これは静的な「枠組み」です。
+対して `Report` クラス（Entity）は、その枠組みの中に入っている具体的なデータ（行）を保持するための入れ物です。
+Room（Android）の `@Entity` クラスが両方の役割を兼ねているのと対照的です。
 
 </details>
 
 ---
 
-### Q7. Koin DIモジュールの定義として正しいのはどれ？
+## 📚 セクション3: アプリケーション設計とDI (Koin)
 
-**A)**
-```kotlin
-val appModule = module {
-    factory<ReportRepository> { ReportRepositoryImpl() }
-}
-```
+### Q7. Ktorアプリで「Dependency Injection (DI)」パターンや Koin を導入する主な目的は？（最も適切なものを2つ選択）
 
-**B)**
-```kotlin
-val appModule = module {
-    single<ReportRepository> { ReportRepositoryImpl() }
-}
-```
+1. アプリケーションの起動時間を短縮する。
+2. コンポーネント間の結合度を下げ、`Repository` などをモック（偽物）に差し替えてテストしやすくする。
+3. データベースの接続情報を暗号化する。
+4. `Route`（コントローラー）がデータアクセスの詳細を知らなくて済むようにし、責務を分離する。
 
-**C)**
-```kotlin
-val appModule = module {
-    viewModel { ReportRepositoryImpl() }
-}
-```
-
-**D)**
-```kotlin
-val appModule = module {
-    bind(ReportRepository::class) to ReportRepositoryImpl()
-}
-```
+- A) 1 と 3
+- B) 2 と 4
+- C) 1 と 2
+- D) 3 と 4
 
 <details>
 <summary>答えを見る</summary>
 
 **正解: B**
+
+**解説:**
+DIの主目的は **「疎結合（Decoupling）」** と **「テスト容易性（Testability）」** です。
+Routeが `ReportRepositoryImpl` を直接 `new` してしまうと、DBを使わないテストを書くことが難しくなります。
+DIを使えば、テスト時は「メモリ上にデータを保存するだけの偽Repository」を注入するといったことが簡単になります。
+
+</details>
+
+---
+
+### Q8. Koinの定義において、`ReportRepository` のようなステートレス（状態を持たない）なクラスに適したスコープ定義は？
 
 ```kotlin
 val appModule = module {
-    single<ReportRepository> { ReportRepositoryImpl() }
-    // ↑ シングルトン（アプリ全体で1つのインスタンスを使い回す）
+    // ここに入るのは？ <ReportRepository> { ReportRepositoryImpl() }
 }
 ```
 
-**Koinのスコープ:**
-| スコープ | 説明 | Riverpod/Hilt との比較 |
-|:---|:---|:---|
-| `single { }` | シングルトン | Riverpod の `Provider` |
-| `factory { }` | 毎回新しいインスタンス | - |
-| `viewModel { }` | Android ViewModelスコープ | Hilt の `@ViewModelScoped` |
-
-**Repositoryはシングルトンが適切:**
-- 状態を持たない（ステートレス）
-- 複数インスタンスは不要
-- メモリ効率が良い
-
-</details>
-
----
-
-## 📚 セクション3: サーバーサイド特有の概念
-
-### Q8. 以下のコードの問題点は？
-
-```kotlin
-get("/api/reports") {
-    val month = call.parameters["month"]
-    val userId = UUID.fromString("00000000-0000-0000-0000-000000000000")
-    
-    val reports = reportRepository.findByMonth(month, userId)
-    call.respond(reports)  // ← 問題箇所
-}
-```
-
-- A) `transaction { }` がない
-- B) DTOに変換せずにEntityをそのまま返すと、UUID等の型がシリアライズできず500エラーになる
-- C) `month` のnullチェックがない
-- D) HTTPステータスコードを明示すべき
+- A) `factory` （要求されるたびに新しいインスタンスを作成）
+- B) `single` （アプリ起動中、常に同じ1つのインスタンスを使い回す）
+- C) `viewModel` （画面回転などで破棄されるまで保持）
+- D) `scoped` （特定のリクエスト期間中のみ保持）
 
 <details>
 <summary>答えを見る</summary>
 
 **正解: B**
 
-```kotlin
-// ❌ 間違い
-call.respond(reports)
-// ReportのままだとUUID, LocalDate等がJSONにできない
-
-// ✅ 正しい
-call.respond(reports.map { it.toDto() })
-// DTOに変換してからレスポンス
-```
-
-**なぜEntityをそのまま返せない？**
-```kotlin
-// Entity（内部用）
-data class Report(
-    val id: UUID,              // ← JSONシリアライズできない
-    val date: LocalDate,       // ← JSONシリアライズできない
-    val userId: UUID,          // ← JSONシリアライズできない
-    // ...
-)
-
-// DTO（レスポンス用）
-@Serializable
-data class ReportDto(
-    val id: String,            // UUID.toString()
-    val date: String,          // LocalDate.toString() → "2026-01-18"
-    val userId: String,        // UUID.toString()
-    // ...
-)
-```
-
-**変換関数:**
-```kotlin
-fun Report.toDto(): ReportDto = ReportDto(
-    id = id.toString(),
-    date = date.toString(),
-    userId = userId.toString(),
-    // ...
-)
-```
+**解説:**
+Repository自体がデータ（状態）を持たず、DBへのアクセス機能を提供するだけであれば、インスタンスは1つあれば十分です。
+これを **Singleton（シングルトン）** パターンと呼びます。
+`factory` にすると、リクエストのたびに無駄にインスタンス生成が行われメモリ効率が悪くなります。
 
 </details>
 
 ---
 
-### Q9. 環境変数によるデータベース接続情報の管理について正しいのはどれ？
+## 📚 セクション4: データ整合性とトランザクション
 
-```kotlin
-val dbPassword = System.getenv("DATABASE_PASSWORD")
-    ?: throw IllegalStateException("DATABASE_PASSWORD is not set")
-```
+### Q9. 次のシナリオのうち、**必ず「トランザクション」内で実行すべき**ものはどれ？
 
-- A) ハードコードの方が安全
-- B) 環境変数は本番/開発環境で異なる値を使える、秘密情報をコードに書かない
-- C) 環境変数は起動時のパフォーマンスを向上させる
-- D) 環境変数は必須ではない
+- A) ユーザー一覧を取得し、その件数をログに出力する。
+- B) ユーザーがレポートを投稿した際、「レポートテーブルへの保存」と「ユーザーの合計投稿数のカウントアップ」を別々のテーブルに対して行う。
+- C) 外部API（天気予報など）を叩いて、結果をそのままクライアントに返す。
+- D) アプリの起動時に設定ファイルを読み込む。
 
 <details>
 <summary>答えを見る</summary>
 
 **正解: B**
 
-**環境変数を使う理由:**
-
-```
-本番環境:
-  DATABASE_PASSWORD=production-secret
-
-開発環境:
-  DATABASE_PASSWORD=dev-password
-
-ローカル環境:
-  DATABASE_PASSWORD=local-password
-```
-
-**メリット:**
-- ✅ 本番/開発環境で異なる値を使える
-- ✅ 秘密情報をコードに書かない（Git履歴に残らない）
-- ✅ Cloud Runなどが自動で設定してくれる（PORTなど）
-
-**Android（BuildConfig）との類似概念:**
-```kotlin
-// Android: build.gradle.kts で設定
-buildConfigField("String", "API_KEY", "\"${localProperties['api.key']}\"")
-
-// サーバー: 環境変数で設定
-val apiKey = System.getenv("API_KEY")
-```
+**解説:**
+**トランザクション**は「複数の更新操作を不可分な（分けられない）1つの処理」として扱う仕組みです。
+Bの場合、もし「レポート保存」だけ成功して「カウントアップ」に失敗すると、データに矛盾（不整合）が生じます。
+トランザクションを使えば、片方が失敗した時点で**両方ともなかったこと（ロールバック）**にして、整合性を保てます。
 
 </details>
 
 ---
 
-### Q10. HikariCPのコネクションプール設定について正しいのはどれ？
+### Q10. サーバーサイド開発において、データのID（UUIDなど）や作成日時（createdAt）を決定・生成すべき場所は？
 
-```kotlin
-maximumPoolSize = 3
-minimumIdle = 1
-idleTimeout = 60000
-```
-
-- A) `maximumPoolSize` は大きいほど良い
-- B) Supabase無料枠には同時接続数制限があるため、少なめ（3程度）に設定
-- C) `minimumIdle` は必ず `maximumPoolSize` と同じ値にすべき
-- D) `idleTimeout` は無限に設定すべき
+- A) **クライアント（Androidアプリ）側**: アプリがIDを生成してPOSTする。サーバーはそれをそのまま保存する。
+- B) **サーバー（Repository/DB）側**: サーバーがデータを受け取った時点で生成する。
+- C) **ユーザー入力**: ユーザーにIDを入力させる。
+- D) **どこでも良い**: 開発者の好みで決める。
 
 <details>
 <summary>答えを見る</summary>
 
 **正解: B**
 
-**Supabase無料枠の制限:**
-- 同時接続数に上限がある（無料枠では少ない）
-- 多数のコネクションを張りすぎると接続エラーになる
-
-```kotlin
-maximumPoolSize = 3        // 最大3接続（制限内）
-minimumIdle = 1           // 最低1接続を待機
-idleTimeout = 60000       // 未使用接続は1分後に破棄
-```
-
-**適切な設定:**
-- 無料枠: `maximumPoolSize = 3`
-- 有料枠: `maximumPoolSize = 10〜20`
-
-**なぜ小さい値？**
-- Supabaseの接続数制限を超えないため
-- リクエスト数が少ない場合、多数のコネクションは不要
+**解説:**
+**信頼できる唯一の情報源（Single Source of Truth）**はサーバーであるべきです。
+クライアント側で生成すると以下のようなリスクがあります：
+- クライアントの時計がズレている可能性がある（未来の日付で登録されるなど）。
+- 悪意あるユーザーがIDを操作して重複させたり、不正なフォーマットで送ってくる可能性がある。
+- 複数のクライアント（iOS, Webなど）がある場合、ロジックが分散する。
 
 </details>
 
 ---
 
-### Q11. Exposed の `selectAll().where { ... }` の挙動として正しいのはどれ？
+## 📚 セクション5: APIレスポンス設計
 
-```kotlin
-ReportsTable.selectAll().where { ReportsTable.month eq "2026-01" }
-```
+### Q11. Entity（内部モデル）と DTO（データ転送用オブジェクト）を分ける理由として、**誤っている**記述は？
 
-- A) 全データをメモリに読み込んでからフィルタリング（遅い）
-- B) SQL の WHERE 句で絞り込まれたクエリが発行される（高速）
-- C) キャッシュがあればそれを使う
-- D) トランザクションが必須
+- A) 内部では `LocalDate` 等のリッチな型を使いたいが、JSONにはそれらを文字列等に変換して載せる必要があるため。
+- B) ユーザーの「パスワードハッシュ」など、内部では必要だがクライアントには絶対に見せてはいけないフィールドを除外するため。
+- C) アプリ側の画面仕様が変わってレスポンスの形を変える必要が出た時、DB設計まで影響を受けないようにするため（変更の緩衝材）。
+- D) コードの行数を増やして、プロジェクトの規模を大きく見せるため。
+
+<details>
+<summary>答えを見る</summary>
+
+**正解: D**
+
+**解説:**
+Entity/DTOの分離はボイラープレート（決まり切ったコード）を増やしますが、それ以上のメリット（**セキュリティ、責務の分離、変更への強さ**）があります。
+特にAPI開発では、DBのカラム構造とAPIのレスポンス構造が完全に一致し続けることは稀です。
+
+</details>
+
+---
+
+### Q12. 以下の操作に対するHTTPステータスコードの組み合わせとして、最も適切なものは？
+
+1. `POST /reports` で新規作成に成功した。
+2. `DELETE /reports/{id}` で削除に成功し、特に返すデータがない。
+3. `PUT /reports/{id}` で更新しようとしたが、指定されたIDが存在しなかった。
+
+- A) 1: `200 OK`, 2: `200 OK`, 3: `500 Server Error`
+- B) 1: `201 Created`, 2: `204 No Content`, 3: `404 Not Found`
+- C) 1: `200 OK`, 2: `404 Not Found`, 3: `400 Bad Request`
+- D) 1: `201 Created`, 2: `200 OK`, 3: `403 Forbidden`
 
 <details>
 <summary>答えを見る</summary>
 
 **正解: B**
 
-**Exposed DSL の仕組み:**
-
-```kotlin
-// Kotlin DSL
-ReportsTable.selectAll().where { month eq "2026-01" }
-
-// ↓ 内部で以下のSQLに変換される
-
-SELECT * FROM reports WHERE month = '2026-01'
-```
-
-**メモリ効率:**
-- ❌ 全データをメモリに読み込んでから `filter()` するわけではない
-- ✅ DBレベルでWHERE句によって絞り込まれる
-- ✅ 必要なデータだけがメモリに載る
-
-**Android（Room）との類似性:**
-```kotlin
-// Room: アノテーションでSQL
-@Query("SELECT * FROM reports WHERE month = :month")
-suspend fun findByMonth(month: String): List<Report>
-
-// Exposed: DSLでSQL
-ReportsTable.selectAll().where { month eq month }
-```
-
-どちらも最終的にはSQLが発行される点で同じです。
+**解説:**
+Web APIの標準的な作法（セマンティクス）です。
+- **201 Created**: リソースの作成成功。通常 `Location` ヘッダーに作成されたリソースのURLを含めます。
+- **204 No Content**: 処理は成功したが、レスポンスボディには何もない（削除成功時によく使われる）。
+- **404 Not Found**: クライアントが要求したリソースが存在しない。
 
 </details>
 
 ---
 
-### Q12. Koin の `inject()` と `get()` の違いは？
+## 🏆 完了目安
 
-```kotlin
-// パターン1
-val reportRepository by inject<ReportRepository>()
-
-// パターン2
-val reportRepository = get<ReportRepository>()
-```
-
-- A) 機能的な違いはない（どちらでもOK）
-- B) `inject()` は遅延初期化（Kotlin の `by lazy` と同じ）、`get()` は即座に取得
-- C) `inject()` はシングルトン、`get()` はfactory
-- D) `inject()` の方が高速
-
-<details>
-<summary>答えを見る</summary>
-
-**正解: B**
-
-| メソッド | 初期化タイミング | Kotlinでの類似概念 |
-|:---|:---|:---|
-| `by inject<T>()` | 最初に使われた時 | `by lazy { }` |
-| `get<T>()` | 即座に取得 | 通常の初期化 |
-
-```kotlin
-// 遅延初期化（推奨）
-val repository by inject<ReportRepository>()
-// repositoryが最初にアクセスされたときに取得
-
-// 即座に取得
-val repository = get<ReportRepository>()
-// この行で即座に取得
-```
-
-**どちらを使うべき？**
-- Ktorルート内: `by inject()` が推奨（必要になるまで取得しない）
-- 初期化処理: `get()` でも可
-
-</details>
-
----
-
-## ✅ 採点基準
-
-| 正解数 | 評価 |
-|:---:|:---|
-| 11-12問 | 🏆 完全に理解している |
-| 9-10問 | 👍 概ね理解している。復習推奨箇所あり |
-| 6-8問 | 📖 基礎は理解しているが、深い理解が必要 |
-| 5問以下 | 📚 Phase3.2_DB接続_CRUD_DI.md を再度読み込むことを推奨 |
-
----
-
-## 📝 復習用キーワード
-
-- **トランザクション**: 複数のDB操作をまとめて成功/失敗させる
-- **コネクションプール**: DB接続を使い回して高速化
-- **DTO vs Entity**: 入出力用 vs 内部処理用
-- **HTTPステータスコード**: 200/201/204/400/401/404/500の使い分け
-- **Exposed**: Kotlin ORM（型安全なSQL DSL）
-- **HikariCP**: Java標準の高速コネクションプール
-- **Koin**: Kotlinの軽量DIフレームワーク
-- **single vs factory**: シングルトン vs 毎回新規
-- **inject() vs get()**: 遅延初期化 vs 即座に取得
-- **環境変数**: 秘密情報やデプロイ環境ごとの設定
+このチェックリストで **10問以上** 正解できれば、Phase 3.2 のアーキテクチャ設計を十分に理解しています。
+間違えた項目は、もう一度解説を読み、実際のコードでどのように実装されているか確認してみてください。
