@@ -1,471 +1,140 @@
-# Phase 3.1: Ktorセットアップ 理解度チェックリスト
+# Phase 3.1: Ktorセットアップ & アーキテクチャ 理解度チェックリスト
 
-Phase 3.1（Ktorプロジェクトセットアップ）に関する本質的な理解を確認するための問題集です。
+Phase 3.1 における、**Ktorフレームワークの基本構造とセットアップ**に関する理解度を確認する問題集です。
+DockerやCloud Runに関する内容は、別途 [Docker & Cloud Run 理解度チェックリスト](./docker_cloud_run_checklist.md) を参照してください。
 
 ---
 
-## 📚 セクション1: 基礎理解（4択問題）
+## 📚 セクション1: Ktorの基本概念
 
-### Q1. Ktorの役割について正しいのはどれ？
+### Q1. Android開発者がKtorサーバーを開発する際、最も意識すべき役割の違いは？
 
-- A) データベースを管理するORM
-- B) HTTPリクエストを受けてレスポンスを返すWebフレームワーク
-- C) UIを構築するフレームワーク
-- D) モバイルアプリのテストフレームワーク
+- A) AndroidはJavaで書くが、KtorはKotlinで書く必要がある。
+- B) AndroidはローカルDBを使うが、Ktorはデータベースを使えない。
+- C) Androidはユーザー入力イベントを受け取るが、Ktorは自発的に処理を開始する。
+- D) AndroidはUIスレッドを持つが、KtorはUIを持たず「リクエストを受け取ってレスポンスを返す」ことに特化している。
 
 <details>
 <summary>答えを見る</summary>
 
-**正解: B**
+**正解: D**
 
-Ktorは「HTTPリクエストを受けてレスポンスを返す」ことを中心としたWebフレームワークです。
-
-```
-Android App → HTTP Request → Ktor Server → HTTP Response → Android App
-```
-
-- データベース管理はExposed（ORM）の役割
-- UIはFlutter/Composeの役割
-- テストはKtor Test Moduleなど別のツールを使用
+**解説:**
+サーバーサイド（Ktor）の主役は **HTTP リクエスト/レスポンス** です。
+Androidアプリではユーザーのタップ操作などがトリガーになりますが、サーバーでは「クライアントからのリクエスト受信」が処理のトリガーになります。
+UIを作るのではなく、API（データの窓口）を作ることが主な役割です。
 
 </details>
 
 ---
 
-### Q2. `embeddedServer()` の `host = "0.0.0.0"` について正しいのはどれ？
+### Q2. Ktorにおける「ルーティング (`routing { }`)」の役割をAndroid開発の用語でたとえると？
 
-- A) ローカル開発専用の設定
-- B) 外部からのアクセスを拒否する設定
-- C) すべてのネットワークインターフェースで待ち受ける設定（Cloud Run必須）
-- D) IPv6のみを有効化する設定
-
-<details>
-<summary>答えを見る</summary>
-
-**正解: C**
-
-`host = "0.0.0.0"` は「すべてのネットワークインターフェースで待ち受ける」という意味です。
-
-| 設定 | 意味 | 用途 |
-|:---|:---|:---|
-| `0.0.0.0` | すべてのインターフェース | Cloud Run/Docker必須 |
-| `127.0.0.1` (localhost) | ローカルのみ | ローカル開発のみOK |
-
-**Cloud Runでは外部からアクセスされるため `0.0.0.0` が必須です。**
-
-</details>
-
----
-
-### Q3. Cloud Runが `PORT` 環境変数を設定する理由は？
-
-```kotlin
-val port = System.getenv("PORT")?.toInt() ?: 8080
-```
-
-- A) セキュリティを高めるため
-- B) Cloud Runが動的にポート番号を決めるため、ハードコード禁止
-- C) コンテナを複数起動する際の識別用
-- D) デバッグを容易にするため
-
-<details>
-<summary>答えを見る</summary>
-
-**正解: B**
-
-Cloud Runはコンテナ起動時にポート番号を動的に決めます。そのため：
-
-- ❌ `port = 8080` とハードコードしてはいけない
-- ✅ `System.getenv("PORT")` で環境変数から取得する必要がある
-- `?: 8080` はローカル開発用のデフォルト値
-
-**Cloud Runの仕様に従わないとコンテナが起動してもリクエストを受け付けられません。**
-
-</details>
-
----
-
-### Q4. Ktorのプラグイン（Plugin）について正しいのはどれ？
-
-- A) 必要な機能を後から追加していく仕組み（Androidのライブラリ依存に近い）
-- B) プロジェクト作成時に全て自動でインストールされる
-- C) データベースへの接続機能
-- D) UIコンポーネントのライブラリ
+- A) `Navigation Graph`（URL/パスと、対応する画面/処理の定義）
+- B) `AndroidManifest.xml`（アプリの権限設定）
+- C) `build.gradle.kts`（ライブラリ依存関係）
+- D) `SharedPreferences`（データの保存）
 
 <details>
 <summary>答えを見る</summary>
 
 **正解: A**
 
-Ktorのプラグインは「必要な機能だけを追加していく」設計思想です。
-
-```kotlin
-fun Application.module() {
-    install(ContentNegotiation) { json() }  // JSONサポート追加
-    install(Authentication) { ... }          // 認証機能追加
-    install(CORS) { ... }                    // CORS設定追加
-}
-```
-
-**Android的に言うと:**
-- `build.gradle.kts` に `implementation(...)` を追加するのに似ている
-- 必要な機能を選んで追加する
+**解説:**
+**ルーティング**は、「どのURL（パス）にアクセスされたら、どの処理（ハンドラ）を実行するか」を定義する地図のようなものです。
+Android Jetpack Navigationで `composable("home") { ... }` と画面を定義するのと非常に似ています。
+Ktorでは `get("/health") { ... }` のようにHTTPメソッドとパスを組み合わせて定義します。
 
 </details>
 
 ---
 
-## 📚 セクション2: 実装パターン選択問題
+### Q3. `Application.module()` 関数の役割として正しいのは？
 
-### Q5. ヘルスチェックエンドポイントの実装として正しいのはどれ？
+- A) データベースのテーブルを作成する。
+- B) アプリケーションの起動時に実行され、プラグイン（機能）のインストールやルーティングの設定をまとめて行う場所。
+- C) 画面のレイアウトを定義する。
+- D) テストを実行する。
 
-**A)**
-```kotlin
-get("/health") {
-    call.respondText("OK")
-}
-```
+<details>
+<summary>答えを見る</summary>
 
-**B)**
-```kotlin
-post("/health") {
-    call.respond(HttpStatusCode.OK, HealthResponse("ok", System.currentTimeMillis()))
-}
-```
+**正解: B**
 
-**C)**
-```kotlin
-get("/health") {
-    call.respond(HttpStatusCode.OK, HealthResponse("ok", System.currentTimeMillis()))
-}
-```
+**解説:**
+Ktorでは `Application` クラスの拡張関数としてモジュールを定義します。
+Androidの `Application.onCreate()` や `MainActivity.onCreate()` に近く、ここで `install(ContentNegotiation)` や `configureRouting()` などを呼び出すことで、サーバーに必要な機能を初期化・構成します。
 
-**D)**
-```kotlin
-get("/health") {
-    println("Health check")
-}
-```
+</details>
+
+---
+
+## 📚 セクション2: プラグインと機能
+
+### Q4. Ktorにおける「プラグイン（旧称: Feature）」とは何か？
+
+- A) 外部の有料サービス。
+- B) IntelliJ IDEAの拡張機能。
+- C) Google Chromeの拡張機能。
+- D) 「認証」「CORS」「JSON変換」など、必要な機能だけをサーバーに追加するための仕組み。
+
+<details>
+<summary>答えを見る</summary>
+
+**正解: D**
+
+**解説:**
+Ktorは「マイクロフレームワーク」であり、初期状態ではほとんど機能を持っていません。
+必要な機能だけを `install(PluginName) { ... }` という形で追加していく設計になっています。
+これにより、不要な機能を持たない軽量で高速なサーバーを作ることができます。
+
+</details>
+
+---
+
+### Q5. Android開発における `Retrofit` と、Ktorにおける `ContentNegotiation` プラグインの共通点は？
+
+- A) どちらもHTTP通信を暗号化する機能である。
+- B) どちらも「データクラス（Kotlinオブジェクト）」と「JSON」を自動で変換（シリアライズ/デシリアライズ）する設定を行う場所である。
+- C) どちらもDB接続を管理する機能である。
+- D) 共通点はない。
+
+<details>
+<summary>答えを見る</summary>
+
+**正解: B**
+
+**解説:**
+- **Android (Retrofit)**: `MoshiConverterFactory` などを追加することで、APIのレスポンス（JSON）を自動で `User` クラスなどに変換します。
+- **Ktor (Server)**: `install(ContentNegotiation) { json() }` を設定することで、`call.respond(user)` とするだけで自動的に `User` クラスを JSON に変換して返します。
+「型安全なオブジェクトと通信フォーマット（JSON）の橋渡し」という役割は全く同じです。
+
+</details>
+
+---
+
+### Q6. ヘルスチェック API (`GET /health`) を実装する主な目的は？
+
+- A) サーバーのCPU温度を監視するため。
+- B) ユーザーの健康状態を管理するため。
+- C) Cloud Runやロードバランサーが「サーバーが正常に起動しているか」を定期的に確認し、応答がない場合に再起動やトラフィック遮断を行うため。
+- D) データベースのバックアップを取るため。
 
 <details>
 <summary>答えを見る</summary>
 
 **正解: C**
 
-ヘルスチェックは：
-- **GETメソッド**で実装（読み取り専用）
-- **HTTPステータスコード**を明示的に返す
-- **構造化されたレスポンス**（JSON）を返す
-
-```kotlin
-get("/health") {
-    call.respond(
-        HttpStatusCode.OK,
-        HealthResponse(
-            status = "ok",
-            timestamp = System.currentTimeMillis()
-        )
-    )
-}
-```
-
-POSTは不適切（データ作成の意味になる）、printlnだけではクライアントにレスポンスが返らない。
+**解説:**
+クラウド環境では、サーバープロセスが起動していても「応答不能」な状態になることがあります。
+インフラ側（Cloud Run等）は定期的に `/health` にアクセスし、200 OK が返ってくるかを確認します（死活監視）。
+これが失敗すると「コンテナが死んだ」と判断され、新しいコンテナに置き換えられます。
 
 </details>
 
 ---
 
-### Q6. `@Serializable` アノテーションの役割は？
+## 🏆 完了目安
 
-```kotlin
-@Serializable
-data class HealthResponse(
-    val status: String,
-    val timestamp: Long
-)
-```
-
-- A) データベースのテーブル定義
-- B) Kotlinオブジェクト ↔ JSON の自動変換を有効化（Moshiの@JsonClassに相当）
-- C) スレッドセーフなクラスにする
-- D) Android側でのみ使用可能
-
-<details>
-<summary>答えを見る</summary>
-
-**正解: B**
-
-`@Serializable` は `kotlinx.serialization` のアノテーションで、自動的にJSON変換が可能になります。
-
-**Android（Moshi）との比較:**
-```kotlin
-// Android
-@JsonClass(generateAdapter = true)
-data class User(val name: String)
-
-// Ktor
-@Serializable
-data class User(val name: String)
-```
-
-どちらも「コンパイル時にシリアライザーを自動生成する」という点で同じ仕組みです。
-
-</details>
-
----
-
-### Q7. ContentNegotiation プラグインの役割として正しいのはどれ？
-
-```kotlin
-install(ContentNegotiation) {
-    json(Json {
-        prettyPrint = true
-        isLenient = true
-    })
-}
-```
-
-- A) データベースとの通信形式を決める
-- B) クライアントとサーバー間でどの形式（JSON等）でデータをやり取りするかを設定
-- C) HTTPメソッド（GET/POST等）を定義する
-- D) CORSポリシーを設定する
-
-<details>
-<summary>答えを見る</summary>
-
-**正解: B**
-
-ContentNegotiation（コンテンツネゴシエーション）は、クライアントとサーバーの間でデータのやり取り形式を決める仕組みです。
-
-```
-リクエスト:   Content-Type: application/json
-レスポンス:  Content-Type: application/json
-```
-
-**Android的に言うと:**
-- `Retrofit.Builder().addConverterFactory(MoshiConverterFactory.create())` に相当
-- JSONでデータをやり取りする設定
-
-</details>
-
----
-
-## 📚 セクション3: Docker/Cloud Run の理解
-
-### Q8. Dockerfileの「マルチステージビルド」の利点は？
-
-```dockerfile
-FROM gradle:8.12-jdk17 AS build
-# ... ビルド処理 ...
-
-FROM eclipse-temurin:17-jre
-# ... 実行用 ...
-```
-
-- A) 複数のプログラミング言語を同時に使える
-- B) 最終イメージサイズを小さくできる（ビルド用ツールを含めない）
-- C) ビルド時間を短縮できる
-- D) セキュリティが自動的に強化される
-
-<details>
-<summary>答えを見る</summary>
-
-**正解: B**
-
-マルチステージビルドでは：
-
-```
-[ステージ1: build]  (約1GB)
-  ソースコード + Gradle → Fat JAR生成
-
-[ステージ2: 実行用]  (約200MB)
-  Fat JARのみをコピー → 最終イメージ
-```
-
-**メリット:**
-- ビルドツール（Gradle等）を最終イメージに含めない
-- 実行に必要な最小限のファイルだけを含む
-- デプロイ時のイメージサイズが小さくなり高速化
-
-**Android的に言うと:**
-- APKに不要なビルドツールを含めないのと同じ
-
-</details>
-
----
-
-### Q9. Apple Silicon Mac (M1/M2/M3) でDockerビルド時に `--platform linux/amd64` を指定する理由は？
-
-```bash
-docker build --platform linux/amd64 -t cleaning-report-api .
-```
-
-- A) ビルド速度を上げるため
-- B) Cloud Runは AMD64アーキテクチャで動作するため、ARM64イメージでは動かない
-- C) セキュリティを高めるため
-- D) Macでのみ必要な設定
-
-<details>
-<summary>答えを見る</summary>
-
-**正解: B**
-
-**アーキテクチャの違い:**
-- Apple Silicon Mac: ARM64アーキテクチャ
-- Cloud Run: AMD64（x86_64）アーキテクチャ
-
-`--platform linux/amd64` を指定しないと、Mac上でARM64用のイメージがビルドされ、Cloud Runでは動作しません。
-
-**クロスプラットフォームビルド:**
-```bash
-# ARM64の Mac で AMD64 用のイメージをビルド
-docker build --platform linux/amd64 -t my-app .
-```
-
-</details>
-
----
-
-### Q10. Fat JAR（buildFatJar）とは何か？
-
-```kotlin
-ktor {
-    fatJar {
-        archiveFileName.set("app.jar")
-    }
-}
-```
-
-- A) サイズの大きいJARファイルのこと
-- B) すべての依存ライブラリを含む単一のJARファイル
-- C) 圧縮されていないJARファイル
-- D) デバッグ情報が含まれるJARファイル
-
-<details>
-<summary>答えを見る</summary>
-
-**正解: B**
-
-Fat JAR（またはUber JAR）は「すべての依存ライブラリを含む単一のJARファイル」です。
-
-**通常のJAR:**
-```
-app.jar  (10MB)
-libs/
-  ├── ktor-core.jar
-  ├── exposed.jar
-  └── ...
-```
-
-**Fat JAR:**
-```
-app.jar  (50MB) ← すべて含まれている
-```
-
-**メリット:**
-- `java -jar app.jar` だけで実行可能
-- ライブラリの依存関係を気にしなくて良い
-- Dockerイメージに含めるファイルが1つだけ
-
-**Android的に言うと:**
-- APKにすべての依存ライブラリが含まれているのと同じ
-
-</details>
-
----
-
-### Q11. `gcloud services enable run.googleapis.com` の意味は？
-
-- A) Cloud Runのバージョンを最新化する
-- B) Cloud Run APIを有効化する（Firebaseで各サービスを有効化するのと同じ）
-- C) Cloud Runのインスタンスを起動する
-- D) Cloud Runのログを有効化する
-
-<details>
-<summary>答えを見る</summary>
-
-**正解: B**
-
-Google Cloudでは使いたいAPIを明示的に有効化する必要があります。
-
-**Android/Firebaseでの類似概念:**
-```
-Firebase Console → Firestore を有効化
-Firebase Console → Functions を有効化
-
-Google Cloud → Cloud Run API を有効化
-Google Cloud → Artifact Registry API を有効化
-```
-
-有効化しないとそのサービスを使えません（エラーになる）。
-
-</details>
-
----
-
-### Q12. ルーティングの `get("/health")` と `post("/api/reports")` の違いは？
-
-```kotlin
-routing {
-    get("/health") { ... }
-    post("/api/reports") { ... }
-}
-```
-
-- A) getは読み取り専用、postはデータ作成
-- B) getは高速、postは低速
-- C) getは認証不要、postは認証必須
-- D) まったく同じ機能（記述方法の違いだけ）
-
-<details>
-<summary>答えを見る</summary>
-
-**正解: A**
-
-HTTPメソッドには意味があります：
-
-| メソッド | 用途 | 例 |
-|:---|:---|:---|
-| GET | データを取得（読み取り専用） | `/api/reports?month=2026-01` |
-| POST | データを作成 | `/api/reports` でレポート作成 |
-| PUT | データを更新 | `/api/reports/{id}` で更新 |
-| DELETE | データを削除 | `/api/reports/{id}` で削除 |
-
-**Androidで例えると:**
-```kotlin
-@GET("api/reports")
-suspend fun getReports(): List<Report>
-
-@POST("api/reports")
-suspend fun createReport(@Body report: Report): Report
-```
-
-</details>
-
----
-
-## ✅ 採点基準
-
-| 正解数 | 評価 |
-|:---:|:---|
-| 11-12問 | 🏆 完全に理解している |
-| 9-10問 | 👍 概ね理解している。復習推奨箇所あり |
-| 6-8問 | 📖 基礎は理解しているが、深い理解が必要 |
-| 5問以下 | 📚 Phase3.1_Ktorセットアップ.md を再度読み込むことを推奨 |
-
----
-
-## 📝 復習用キーワード
-
-- **Ktor**: Kotlin製のWebフレームワーク
-- **embeddedServer**: Ktorサーバーの起動
-- **host = "0.0.0.0"**: すべてのインターフェースで待ち受け（Cloud Run必須）
-- **PORT環境変数**: Cloud Runが動的に設定するポート番号
-- **プラグイン（Plugin）**: 必要な機能を追加する仕組み
-- **routing**: URLと処理のマッピング
-- **ContentNegotiation**: JSON等のやり取り形式の設定
-- **@Serializable**: JSON自動変換
-- **Fat JAR**: すべての依存を含む単一JAR
-- **マルチステージビルド**: Dockerイメージサイズの最適化
-- **--platform linux/amd64**: Apple Silicon用の設定
-- **gcloud**: Google Cloud CLI
+このチェックリストで **5問以上** 正解できれば、Phase 3.1 における Ktor の基礎部分は理解できています。
+続いて、[Docker & Cloud Run 理解度チェックリスト](./docker_cloud_run_checklist.md) に進み、インフラ周りの理解を深めてください。
